@@ -18,12 +18,12 @@ class CultivoCreate(BaseModel):
 # --- Tu aplicación FastAPI ---
 app = FastAPI()
 
-# Añade las DOS URLs de Vercel (la de preview y la de producción)
+# --- Configuración de CORS ---
 origins = [
-    "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app", # Tu URL de "preview"
-    "https://appplant.vercel.app",  # Tu URL de producción (la del error)
-    "https://appplant.onrender.com", # Tu backend
-    "http://localhost:5173",          # Tu frontend local
+    "https://app-plant.vercel.app",
+    "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app",
+    "https://appplant.onrender.com",
+    "http://localhost:5173",
 ]
 
 app.add_middleware(
@@ -34,18 +34,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
 # --- ENDPOINTS ---
 
 # Endpoint raíz para la prueba de salud de Render
 @app.get("/")
 def health_check():
-    """
-    Responde 200 OK a la prueba de salud de Render.
-    """
     return {"status": "ok", "message": "Backend is running!"}
-# --- FIN DEL ARREGLO ---
+
+
+# --- ⚠️ NUEVO ENDPOINT DE DIAGNÓSTICO ⚠️ ---
+@app.get("/test-env")
+def test_env_vars():
+    """
+    Imprime las variables de entorno en el log de Render.
+    """
+    print("--- INICIANDO PRUEBA DE VARIABLES DE ENTORNO ---")
+    
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    
+    print(f"SUPABASE_URL: {url}")
+    print(f"SUPABASE_KEY (primeros 5 caracteres): {key[:5] if key else 'None'}")
+    
+    if not url or not key:
+        print("ERROR: Variables de Supabase NO encontradas.")
+        raise HTTPException(status_code=500, detail="Variables de entorno de Supabase no configuradas.")
+        
+    print("--- PRUEBA DE VARIABLES DE ENTORNO FINALIZADA ---")
+    return {"message": "Variables de entorno presentes. Revisa los logs de Render."}
+# --- FIN DEL ENDPOINT DE DIAGNÓSTICO ---
+
 
 @app.get("/cultivos")
 def get_cultivos():
@@ -57,7 +75,7 @@ def get_cultivos():
         if response.data:
             return response.data
         else:
-            return [] # Devuelve lista vacía si no hay datos
+            return []
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -76,7 +94,7 @@ def create_cultivo(cultivo: CultivoCreate):
             "statusColor": "text-gray-500",
             "temp": "N/A",
             "humidity": "N/A",
-            "nutrients": "N/A",
+        "nutrients": "N/A",
             "waterLevel": "N/A"
         }
         
@@ -89,4 +107,3 @@ def create_cultivo(cultivo: CultivoCreate):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
