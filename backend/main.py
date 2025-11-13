@@ -96,6 +96,7 @@ def create_cultivo_api(cultivo: CultivoCreate):
     return result
 
 
+
 # 1. Define las "Herramientas" que la IA puede usar
 tools = [
     {
@@ -124,11 +125,10 @@ tools = [
 
 # 2. Inicializa el modelo de IA con las herramientas
 model = genai.GenerativeModel(
-    model_name='gemini-1.0-pro',
+    model_name='gemini-pro',
     tools=tools,
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español."
 )
-
 
 # 3. Mapea los nombres de las herramientas a las funciones de Python
 available_tools = {
