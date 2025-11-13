@@ -49,9 +49,6 @@ app.add_middleware(
 )
 
 # --- ENDPOINTS DE CULTIVOS (Funciones Internas) ---
-# Estas son las funciones que tu API ya tiene,
-# pero las rehacemos aquí para que la IA pueda llamarlas.
-
 def get_cultivos_internal():
     """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
@@ -126,12 +123,12 @@ tools = [
 ]
 
 # 2. Inicializa el modelo de IA con las herramientas
-# (Usamos un modelo que soporta "tool calling")
 model = genai.GenerativeModel(
-    model_name='gemini-1.5-pro-latest',
+    model_name='gemini-1.0-pro',
     tools=tools,
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español."
 )
+
 
 # 3. Mapea los nombres de las herramientas a las funciones de Python
 available_tools = {
