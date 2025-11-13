@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Importar todos los componentes de los pasos
+// Estas rutas asumen que los componentes están en 'components/AgregarCultivo/'
 import ProgressBar from '../../components/AgregarCultivo/ProgressBar';
 import PasoUno from '../../components/AgregarCultivo/Paso1/PasoUno';
 import PasoDos from '../../components/AgregarCultivo/Paso2/PasoDos';
@@ -26,7 +27,7 @@ function AddCultivoPage() {
     // Funciones de navegación
     const nextStep = () => setCurrentStep(prev => prev + 1);
     const prevStep = () => setCurrentStep(prev => prev - 1);
-    const handleCancel = () => navigate('/cultivos'); // Vuelve a la página principal
+    const handleCancel = () => navigate('/'); // Vuelve a la página principal
 
     // Función para enviar el formulario final
     const handleFinish = async () => {
