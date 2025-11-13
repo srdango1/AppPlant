@@ -1,95 +1,90 @@
-// src/pages/MisCultivosPage.jsx
-import { Link } from 'react-router-dom';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import DetailedCultivationCard from '../../components/ui/MisCultivosCard';
 import Button from '../../components/common/Button';
-// Datos de ejemplo para el prototipo
-const cultivosData = [
-    {
-        id: 'lechugas-cama-1', 
-        name: 'Lechugas', 
-        location: 'Cama 1', 
-        status: 'Saludable', 
-        statusColor: 'text-green-500', 
-        temp: '22°C', // Agregué 'temp' (Temperatura) ya que estaba en tu HTML original.
-        humidity: '65%',
-        nutrients: '6.5 pH', // Dato simulado
-        waterLevel: '80%', 
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3',
-        altText: 'Foto de un cultivo de lechugas'
-    },
-    {
-        id: 'tomates-cherry-balcon', 
-        name: 'Tomates Cherry', 
-        location: 'Balcón', 
-        status: 'Necesita Agua', 
-        statusColor: 'text-yellow-500', 
-        temp: '25°C', 
-        humidity: '40%',
-        nutrients: '5.2 pH', // Dato simulado
-        waterLevel: '15%', 
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDC_9Hakg1INZM6BjqCTO4Z5KeV40vNA2ZY7qG0qds2AxuGTfuFeSyPiTVuoQxgBHvxGqcWYWnEp_Q7ncD_DdbKaP3-13VgIj1dl9QkeaRFpaSpf91FOl6ceLdV4DMVEt7ZtGvEsxYGVTfvHOhKHPfywpHbyxj7nJ6ZUadKrOj6CUrcNb2ZEtLQqetfoGqBlnU04QyXKf1G7_W3NFqWPo_rT6QkxPBTai9aTBERgwZoXM3_nlJZouYSP47E2llMx-lCRvGIHrrwFfQa',
-        altText: 'Foto de tomates cherry'
-    },
-    {
-        id: 'hierbas-ventana', 
-        name: 'Hierbas', 
-        location: 'Ventana Cocina', 
-        status: 'Plaga Detectada', 
-        statusColor: 'text-red-500', 
-        temp: '20°C', 
-        humidity: '60%',
-        nutrients: '6.0 pH', // Dato simulado
-        waterLevel: '50%', 
-        imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCr0eqkJqrsUOhyuj_gJsuJVJl6N8BL4ItNP3g3Xydy5u2nouGaNpwUcGkKN2NmiDKf-Gt__ssBUXQQMMXY7YSI1FY5I01CILFhd9D7Wa9wFaaveqTMk4ZnNUEwiBRqQxZVXPhj-6YvPHJITBjafbAFBEMI2kNpnb5c5GkhlRb6vByVenoDqIQaq2FIrndueUAZ89fqtHUSWUjOMXS3hBWfRv31P32oUrH77tl2nJOPpjZlh85DL20uoM8oq2h3H97dV7J1jP2wGQog',
-        altText: 'Foto de hierbas aromáticas'
-    },
-];
+import AddCultivoModal from '../../components/ui/AddCultivoModal'; // 1. Importar el modal
 
+// Obtenemos la URL del backend desde las variables de entorno de Vite
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MisCultivosPage() {
+    // 2. Usar estado para los cultivos y el modal
+    const [cultivos, setCultivos] = useState([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // 3. Cargar datos del backend cuando la página se monta
+    useEffect(() => {
+        const fetchCultivos = async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/cultivos`);
+                if (!response.ok) throw new Error('No se pudieron cargar los datos');
+                
+                const data = await response.json();
+                setCultivos(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchCultivos();
+    }, []); // El array vacío [] significa que esto se ejecuta solo una vez
+
+    // 4. Función para añadir el nuevo cultivo al estado
+    const handleCultivoAdded = (newCultivo) => {
+        setCultivos(prevCultivos => [...prevCultivos, newCultivo]);
+        setIsModalOpen(false); // Cierra el modal
+    };
+
     return (
         <>
-
             <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto w-full">
                 
-                {/* Título de la Página */}
                 <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
                     <h1 className="text-text-light dark:text-text-dark text-4xl font-black leading-tight tracking-[-0.033em]">
                         Mis Cultivos
                     </h1>
-                    <Button
-                    
-                    >Añadir Cultivo</Button>
+                    {/* 5. Botón para abrir el modal */}
+                    <Button onClick={() => setIsModalOpen(true)}>
+                        Añadir Cultivo
+                    </Button>
                 </div>
                 
-                {/* Contenedor de la Cuadrícula */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    
-                    {/* Mapeo para generar las tarjetas con los datos dados arriba*/}
-                    {cultivosData.map(cultivo => (
-                        <DetailedCultivationCard 
-                            key={cultivo.id}
-                            name={cultivo.name}
-                            locarion={cultivo.location}
-                            imageUrl={cultivo.imageUrl}
-                            status={cultivo.status}
-                            statusColor={cultivo.statusColor}
-                            temperature={cultivo.temp}
-                            humidity={cultivo.humidity}
-                            nutrients={cultivo.nutrients}
-                            waterLevel={cultivo.waterLevel}
-                           altText={cultivo.altText}
-                           id={cultivo.id}
-                            
-                            
-                        />
-                    ))}
-                    
-                </div>
+                {/* 6. Manejo de estados de Carga y Error */}
+                {isLoading && <p>Cargando cultivos...</p>}
+                {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+                
+                {/* 7. Contenedor de la Cuadrícula */}
+                {!isLoading && !error && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {/* 8. Mapeo de la lista de cultivos del estado */}
+                        {cultivos.map(cultivo => (
+                            <DetailedCultivationCard 
+                                key={cultivo.id}
+                                id={cultivo.id}
+                                name={cultivo.name}
+                                location={cultivo.location}
+                                imageUrl={cultivo.imageUrl}
+                                status={cultivo.status}
+                                statusColor={cultivo.statusColor}
+                                temp={cultivo.temp}
+                                humidity={cultivo.humidity}
+                                nutrients={cultivo.nutrients}
+                                waterLevel={cultivo.waterLevel}
+                                altText={`Foto de ${cultivo.name}`}
+                            />
+                        ))}
+                    </div>
+                )}
             </main>
             
-            
+            {/* 9. Renderizar el modal */}
+            <AddCultivoModal 
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onCultivoAdded={handleCultivoAdded}
+            />
         </>
     );
 }
