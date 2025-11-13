@@ -1,0 +1,45 @@
+# ----------------------------------------------------------------------
+# Archivo de ignorados (Git Ignore) para proyecto Full Stack
+# ----------------------------------------------------------------------
+
+### 1. Dependencias y Entornos Generados (General)
+
+# Archivos de caché del SO
+.DS_Store
+Thumbs.db
+
+# Entornos Virtuales (Python y Node)
+/backend/venv/
+/frontend/node_modules/
+
+# Archivos de caché de Node
+npm-debug.log*
+.npm/
+
+### 2. Archivos Sensibles del Backend (Python/FastAPI)
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+*.o
+*.pyd
+
+# Variables de Entorno (¡IMPORTANTE!)
+# Aquí almacenarás la cadena de conexión de Supabase y otras claves.
+# NUNCA subas este archivo.
+.env
+.env.*
+.flaskenv
+
+### 3. Archivos Generados del Frontend (React/Vercel)
+
+# Carpeta de salida de la construcción de Vite/Webpack/React
+# Vercel construye esta carpeta durante el despliegue.
+/frontend/dist/
+
+# Archivos de log
+/frontend/npm-debug.log*
+/frontend/yarn-error.log
+
+# Otros directorios de caché de Vite/Next/etc.
+.vite/
