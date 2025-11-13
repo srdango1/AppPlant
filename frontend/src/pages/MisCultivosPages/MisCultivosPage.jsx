@@ -1,20 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import DetailedCultivationCard from '../../components/ui/MisCultivosCard';
 import Button from '../../components/common/Button';
-// 1. Ya NO importamos el modal
 
-// Obtenemos la URL del backend desde las variables de entorno de Vite
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// --- ¡NUEVA FUNCIÓN! ---
+// Esta función decide qué imagen mostrar basándose en la lista de plantas
+// Usamos las URLs de tus maquetas originales
+const getVisualImageUrl = (plantas) => {
+    if (!plantas || plantas.length === 0) {
+        // Imagen por defecto si no hay plantas
+        return 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3'; 
+    }
+
+    const firstPlant = plantas[0]; // Basamos la imagen en la primera planta
+
+    // Mapeo de IDs de planta (del Paso 2) a tus URLs de imagen
+    const plantImageMap = {
+        'tomato': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDC_9Hakg1INZM6BjqCTO4Z5KeV40vNA2ZY7qG0qds2AxuGTfuFeSyPiTVuoQxgBHvxGqcWYWnEp_Q7ncD_DdbKaP3-13VgIj1dl9QkeaRFpaSpf91FOl6ceLdV4DMVEt7ZtGvEsxYGVTfvHOhKHPfywpHbyxj7nJ6ZUadKrOj6CUrcNb2ZEtLQqetfoGqBlnU04QyXKf1G7_W3NFqWPo_rT6QkxPBTai9aTBERgwZoXM3_nlJZouYSP47E2llMx-lCRvGIHrrwFfQa',
+        'lettuce': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3',
+        'basil': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCr0eqkJqrsUOhyuj_gJsuJVJl6N8BL4ItNP3g3Xydy5u2nouGaNpwUcGkKN2NmiDKf-Gt__ssBUXQQMMXY7YSI1FY5I01CILFhd9D7Wa9wFaaveqTMk4ZnNUEwiBRqQxZVXPhj-6YvPHJITBjafbAFBEMI2kNpnb5c5GkhlRb6vByVenoDqIQaq2FIrndueUAZ89fqtHUSWUjOMXS3hBWfRv31P32oUrH77tl2nJOPpjZlh85DL20uoM8oq2h3H97dV7J1jP2wGQog',
+        'mint': 'https://lh3.googleusercontent.com/aida-public/AB6AXuCr0eqkJqrsUOhyuj_gJsuJVJl6N8BL4ItNP3g3Xydy5u2nouGaNpwUcGkKN2NmiDKf-Gt__ssBUXQQMMXY7YSI1FY5I01CILFhd9D7Wa9wFaaveqTMk4ZnNUEwiBRqQxZVXPhj-6YvPHJITBjafbAFBEMI2kNpnb5c5GkhlRb6vByVenoDqIQaq2FIrndueUAZ89fqtHUSWUjOMXS3hBWfRv31P32oUrH77tl2nJOPpjZlh85DL20uoM8oq2h3H97dV7J1jP2wGQog',
+        'strawberry': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDC_9Hakg1INZM6BjqCTO4Z5KeV40vNA2ZY7qG0qds2AxuGTfuFeSyPiTVuoQxgBHvxGqcWYWnEp_Q7ncD_DdbKaP3-13VgIj1dl9QkeaRFpaSpf91FOl6ceLdV4DMVEt7ZtGvEsxYGVTfvHOhKHPfywpHbyxj7nJ6ZUadKrOj6CUrcNb2ZEtLQqetfoGqBlnU04QyXKf1G7_W3NFqWPo_rT6QkxPBTai9aTBERgwZoXM3_nlJZouYSP47E2llMx-lCRvGIHrrwFfQa', // Puedes cambiar esta
+        'pepper': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDC_9Hakg1INZM6BjqCTO4Z5KeV40vNA2ZY7qG0qds2AxuGTfuFeSyPiTVuoQxgBHvxGqcWYWnEp_Q7ncD_DdbKaP3-13VgIj1dl9QkeaRFpaSpf91FOl6ceLdV4DMVEt7ZtGvEsxYGVTfvHOhKHPfywpHbyxj7nJ6ZUadKrOj6CUrcNb2ZEtLQqetfoGqBlnU04QyXKf1G7_W3NFqWPo_rT6QkxPBTai9aTBERgwZoXM3_nlJZouYSP47E2llMx-lCRvGIHrrwFfQa', // Puedes cambiar esta
+    };
+
+    // Devuelve la imagen correspondiente o la de lechuga por defecto
+    return plantImageMap[firstPlant] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3';
+};
+
+
 function MisCultivosPage() {
-    // 2. Eliminamos el estado 'isModalOpen'
     const [cultivos, setCultivos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchCultivos = async () => {
-            setIsLoading(true); // Asegúrate de poner loading al recargar
+            setIsLoading(true);
             setError(null);
             try {
                 const response = await fetch(`${API_BASE_URL}/cultivos`);
@@ -29,10 +52,7 @@ function MisCultivosPage() {
             }
         };
         fetchCultivos();
-    }, []); // El array vacío [] significa que esto se ejecuta solo una vez al cargar
-
-    // 3. Eliminamos la función 'handleCultivoAdded'.
-    // La página se recargará con 'useEffect' cuando naveguemos de vuelta.
+    }, []);
 
     return (
         <>
@@ -42,7 +62,6 @@ function MisCultivosPage() {
                     <h1 className="text-text-light dark:text-text-dark text-4xl font-black leading-tight tracking-[-0.033em]">
                         Mis Cultivos
                     </h1>
-                    {/* 4. El botón ahora usa 'to' para navegar */}
                     <Button to="/cultivos/nuevo">
                         Añadir Cultivo
                     </Button>
@@ -54,31 +73,31 @@ function MisCultivosPage() {
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         
-                        {cultivos.map(cultivo => (
-                            <DetailedCultivationCard 
-                                key={cultivo.id}
-                                id={cultivo.id}
-                                name={cultivo.name}
-                                // ¡Añadido! Usa 'location' de la base de datos
-                                location={cultivo.location} 
-                                // ¡Añadido! Usa la primera planta para el alt text, o un default
-                                altText={`Foto de ${cultivo.plantas ? cultivo.plantas[0] : cultivo.name}`}
-                                // ¡Actualizado! Tu tabla ya no tiene imageUrl
-                                // puedes poner una imagen por defecto o construirla basada en las plantas
-                                imageUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3" // URL de marcador de posición
-                                status={cultivo.status}
-                                statusColor={cultivo.statusColor}
-                                temp={cultivo.temp}
-                                humidity={cultivo.humidity}
-                                nutrients={cultivo.nutrients}
-                                waterLevel={cultivo.waterLevel}
-                            />
-                        ))}
+                        {cultivos.map(cultivo => {
+                            // --- ¡LÓGICA VISUAL AQUÍ! ---
+                            // Generamos la URL de la imagen en el momento
+                            const visualImageUrl = getVisualImageUrl(cultivo.plantas);
+
+                            return (
+                                <DetailedCultivationCard 
+                                    key={cultivo.id}
+                                    id={cultivo.id}
+                                    name={cultivo.name}
+                                    location={cultivo.location} 
+                                    altText={`Foto de ${cultivo.plantas ? cultivo.plantas[0] : cultivo.name}`}
+                                    imageUrl={visualImageUrl} // <-- Usamos la URL generada
+                                    status={cultivo.status}
+                                    statusColor={cultivo.statusColor}
+                                    temp={cultivo.temp}
+                                    humidity={cultivo.humidity}
+                                    nutrients={cultivo.nutrients}
+                                    waterLevel={cultivo.waterLevel}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </main>
-            
-            {/* 5. El modal se ha eliminado de aquí */}
         </>
     );
 }

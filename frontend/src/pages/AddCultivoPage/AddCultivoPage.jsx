@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// Importar todos los componentes de los pasos
-// Estas rutas asumen que los componentes están en 'components/AgregarCultivo/'
 import ProgressBar from '../../components/AgregarCultivo/ProgressBar';
 import PasoUno from '../../components/AgregarCultivo/Paso1/PasoUno';
 import PasoDos from '../../components/AgregarCultivo/Paso2/PasoDos';
 import PasoTres from '../../components/AgregarCultivo/Paso3/PasoTres';
 import PasoCuatro from '../../components/AgregarCultivo/Paso4/PasoCuatro';
 
-// Obtenemos la URL del backend desde las variables de entorno
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// --- Ya NO hay función generateImageUrl ---
 
 function AddCultivoPage() {
     const [currentStep, setCurrentStep] = useState(1);
+    // --- 'imageUrl' eliminado del estado ---
     const [formData, setFormData] = useState({
         nombre: '',
         ubicacion: '',
@@ -24,21 +24,20 @@ function AddCultivoPage() {
     const [error, setError] = useState(null);
     const navigate = useNavigate();
 
-    // Funciones de navegación
     const nextStep = () => setCurrentStep(prev => prev + 1);
     const prevStep = () => setCurrentStep(prev => prev - 1);
-    const handleCancel = () => navigate('/'); // Vuelve a la página principal
+    const handleCancel = () => navigate('/');
 
-    // Función para enviar el formulario final
     const handleFinish = async () => {
         setIsLoading(true);
         setError(null);
         
         try {
+            // --- Ya no generamos URL, solo enviamos el formData ---
             const response = await fetch(`${API_BASE_URL}/cultivos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData), // Envía el estado completo
+                body: JSON.stringify(formData), // Envía el estado simple
             });
 
             if (!response.ok) {
@@ -46,16 +45,14 @@ function AddCultivoPage() {
                 throw new Error(errData.detail || 'No se pudo crear el cultivo');
             }
             
-            // Si todo sale bien, vuelve a la página principal
             navigate('/');
 
         } catch (err) {
             setError(err.message);
-            setIsLoading(false); // Detiene la carga si hay un error
+            setIsLoading(false);
         }
     };
 
-    // Renderiza el componente del paso actual
     const renderStep = () => {
         switch (currentStep) {
             case 1:
@@ -73,15 +70,13 @@ function AddCultivoPage() {
 
     return (
         <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto w-full">
-            <div className="max-w-4xl mx-auto flex flex-col gap-8">
+            <div className="max-w-4xl mx_auto flex flex-col gap-8">
                 
-                {/* Título y Barra de Progreso */}
                 <div className="flex flex-col gap-6">
                     <h1 className="text-4xl font-black tracking-tighter">Añadir Nuevo Cultivo</h1>
                     <ProgressBar currentStep={currentStep} totalSteps={4} />
                 </div>
                 
-                {/* Contenedor del Paso Actual */}
                 <div>
                     {error && <p className="text-red-500 mb-4">Error al guardar: {error}</p>}
                     {renderStep()}
