@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
-from pydantic import BaseModel, HttpUrl # Pydantic se usa para validar los datos de entrada
+from pydantic import BaseModel, HttpUrl
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
@@ -10,20 +10,21 @@ supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
 # --- Modelo de Datos (Pydantic) ---
-# Esto valida los datos que llegan desde el frontend
 class CultivoCreate(BaseModel):
     name: str
     location: str
-    imageUrl: HttpUrl # Valida que sea una URL
+    imageUrl: HttpUrl
 
 # --- Tu aplicación FastAPI ---
 app = FastAPI()
 
-
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
+# Añade las DOS URLs de Vercel (la de preview y la de producción)
 origins = [
-    "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app",  # <-- ESTA ES LA LÍNEA QUE FALTABA
-    "https://appplant.onrender.com",
-    "http://localhost:5173",
+    "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app", # Tu URL de "preview"
+    "https://appplant.vercel.app",  # Tu URL de producción (la del error)
+    "https://appplant.onrender.com", # Tu backend
+    "http://localhost:5173",          # Tu frontend local
 ]
 
 app.add_middleware(
@@ -33,6 +34,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# --- FIN DEL ARREGLO DE CORS ---
+
 
 # --- ENDPOINTS ---
 
@@ -57,11 +60,10 @@ def create_cultivo(cultivo: CultivoCreate):
     Crea un nuevo cultivo en la base de datos.
     """
     try:
-        # Prepara los datos para insertar, añadiendo valores por defecto
         data_to_insert = {
             "name": cultivo.name,
             "location": cultivo.location,
-            "imageUrl": str(cultivo.imageUrl), # Convertir HttpUrl a string
+            "imageUrl": str(cultivo.imageUrl),
             "status": "Iniciando",
             "statusColor": "text-gray-500",
             "temp": "N/A",
@@ -70,11 +72,9 @@ def create_cultivo(cultivo: CultivoCreate):
             "waterLevel": "N/A"
         }
         
-        # Inserta en la tabla 'cultivos' y pide que devuelva el registro creado
         response = supabase.table('cultivos').insert(data_to_insert).execute()
         
         if response.data:
-            # Devuelve el nuevo objeto de cultivo (está en data[0])
             return response.data[0]
         else:
             raise HTTPException(status_code=400, detail=response.error.message if response.error else "Error al crear cultivo")
