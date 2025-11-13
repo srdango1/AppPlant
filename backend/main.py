@@ -89,3 +89,4 @@ def create_cultivo(cultivo: CultivoCreate):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+        
