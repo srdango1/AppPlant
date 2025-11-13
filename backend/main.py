@@ -19,12 +19,13 @@ class CultivoCreate(BaseModel):
 # --- Tu aplicación FastAPI ---
 app = FastAPI()
 
-# --- Configuración de CORS ---
+
 origins = [
-    "https" ://tu-url-de-vercel.vercel.app", # ⚠️ RECUERDA PONER TU URL DE VERCEL AQUÍ
+    "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app",  # <-- ESTA ES LA LÍNEA QUE FALTABA
     "https://appplant.onrender.com",
     "http://localhost:5173",
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
