@@ -1,11 +1,12 @@
 import React from 'react';
 import { Routes, Route } from "react-router-dom";
-import MisCultivosPage from './pages/MisCultivosPages/MisCultivoPage';
+import MisCultivosPage from './pages/MisCultivosPages/MisCultivosPage';
+// -----------------------------
 import CultivosDetalle from './pages/MisCultivosPages/CultivosDetalle';
 import Header from './components/layout/Header';
 import AddCultivoPage from './pages/AddCultivoPage/AddCultivoPage';
 
-// 1. Importa el nuevo componente de ChatBot
+// Importa el nuevo componente de ChatBot
 import ChatBot from './components/ui/ChatBot';
 
 function App (){
@@ -19,7 +20,7 @@ function App (){
             <Route path='/cultivos/:id' element={<CultivosDetalle/>}/>
           </Routes>
           
-        {/* 2. Añade el ChatBot aquí */}
+        {/* Añade el ChatBot aquí */}
         {/* Se mostrará en todas las páginas */}
         <ChatBot />
       </div>
