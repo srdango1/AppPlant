@@ -1,16 +1,12 @@
-import React from 'react'; // Eliminamos useState y useEffect que no se usan aquí
-import {
-    Routes,
-    Route
-} from "react-router-dom";
-import MisCultivosPage from './pages/MisCultivosPages/MisCultivosPage';
+import React from 'react';
+import { Routes, Route } from "react-router-dom";
+import MisCultivosPage from './pages/MisCultivosPages/MisCultivoPage';
 import CultivosDetalle from './pages/MisCultivosPages/CultivosDetalle';
 import Header from './components/layout/Header';
-// 1. Importar la nueva página
 import AddCultivoPage from './pages/AddCultivoPage/AddCultivoPage';
 
-// La URL del backend ya no se usa en App.jsx, se usa en las páginas
-// const API_BASE_URL = 'http://localhost:8000'; 
+// 1. Importa el nuevo componente de ChatBot
+import ChatBot from './components/ui/ChatBot';
 
 function App (){
   return(
@@ -19,10 +15,13 @@ function App (){
         
           <Routes>
             <Route path='/' element={<MisCultivosPage/>}/>
-            {/* 2. Añadir la nueva ruta */}
             <Route path='/cultivos/nuevo' element={<AddCultivoPage/>}/>
             <Route path='/cultivos/:id' element={<CultivosDetalle/>}/>
           </Routes>
+          
+        {/* 2. Añade el ChatBot aquí */}
+        {/* Se mostrará en todas las páginas */}
+        <ChatBot />
       </div>
   );
 }
