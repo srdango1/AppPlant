@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import DetailedCultivationCard from '../../components/ui/MisCultivosCard';
 import Button from '../../components/common/Button';
-import AddCultivoModal from '../../components/ui/AddCultivoModal'; // 1. Importar el modal
+// 1. Ya NO importamos el modal
 
 // Obtenemos la URL del backend desde las variables de entorno de Vite
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function MisCultivosPage() {
-    // 2. Usar estado para los cultivos y el modal
+    // 2. Eliminamos el estado 'isModalOpen'
     const [cultivos, setCultivos] = useState([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // 3. Cargar datos del backend cuando la página se monta
     useEffect(() => {
         const fetchCultivos = async () => {
+            setIsLoading(true); // Asegúrate de poner loading al recargar
+            setError(null);
             try {
                 const response = await fetch(`${API_BASE_URL}/cultivos`);
                 if (!response.ok) throw new Error('No se pudieron cargar los datos');
@@ -29,13 +29,10 @@ function MisCultivosPage() {
             }
         };
         fetchCultivos();
-    }, []); // El array vacío [] significa que esto se ejecuta solo una vez
+    }, []); // El array vacío [] significa que esto se ejecuta solo una vez al cargar
 
-    // 4. Función para añadir el nuevo cultivo al estado
-    const handleCultivoAdded = (newCultivo) => {
-        setCultivos(prevCultivos => [...prevCultivos, newCultivo]);
-        setIsModalOpen(false); // Cierra el modal
-    };
+    // 3. Eliminamos la función 'handleCultivoAdded'.
+    // La página se recargará con 'useEffect' cuando naveguemos de vuelta.
 
     return (
         <>
@@ -45,46 +42,43 @@ function MisCultivosPage() {
                     <h1 className="text-text-light dark:text-text-dark text-4xl font-black leading-tight tracking-[-0.033em]">
                         Mis Cultivos
                     </h1>
-                    {/* 5. Botón para abrir el modal */}
-                    <Button onClick={() => setIsModalOpen(true)}>
+                    {/* 4. El botón ahora usa 'to' para navegar */}
+                    <Button to="/cultivos/nuevo">
                         Añadir Cultivo
                     </Button>
                 </div>
                 
-                {/* 6. Manejo de estados de Carga y Error */}
                 {isLoading && <p>Cargando cultivos...</p>}
                 {error && <p style={{ color: 'red' }}>Error: {error}</p>}
                 
-                {/* 7. Contenedor de la Cuadrícula */}
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {/* 8. Mapeo de la lista de cultivos del estado */}
+                        
                         {cultivos.map(cultivo => (
                             <DetailedCultivationCard 
                                 key={cultivo.id}
                                 id={cultivo.id}
                                 name={cultivo.name}
-                                location={cultivo.location}
-                                imageUrl={cultivo.imageUrl}
+                                // ¡Añadido! Usa 'location' de la base de datos
+                                location={cultivo.location} 
+                                // ¡Añadido! Usa la primera planta para el alt text, o un default
+                                altText={`Foto de ${cultivo.plantas ? cultivo.plantas[0] : cultivo.name}`}
+                                // ¡Actualizado! Tu tabla ya no tiene imageUrl
+                                // puedes poner una imagen por defecto o construirla basada en las plantas
+                                imageUrl="https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3" // URL de marcador de posición
                                 status={cultivo.status}
                                 statusColor={cultivo.statusColor}
                                 temp={cultivo.temp}
                                 humidity={cultivo.humidity}
                                 nutrients={cultivo.nutrients}
                                 waterLevel={cultivo.waterLevel}
-                                altText={`Foto de ${cultivo.name}`}
                             />
                         ))}
                     </div>
                 )}
             </main>
             
-            {/* 9. Renderizar el modal */}
-            <AddCultivoModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onCultivoAdded={handleCultivoAdded}
-            />
+            {/* 5. El modal se ha eliminado de aquí */}
         </>
     );
 }

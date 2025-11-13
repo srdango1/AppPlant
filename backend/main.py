@@ -2,18 +2,21 @@ import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
+from typing import List, Optional # 1. Importar List y Optional
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# --- Modelo de Datos (Pydantic) ---
+# --- 2. Modelo de Datos Pydantic ACTUALIZADO ---
 class CultivoCreate(BaseModel):
-    name: str
-    location: str
-    imageUrl: HttpUrl
+    nombre: str
+    ubicacion: str
+    plantas: List[str] # Ahora es una lista de strings
+    deviceId: Optional[str] = None # Es opcional
+
 
 # --- Tu aplicación FastAPI ---
 app = FastAPI()
@@ -42,29 +45,6 @@ def health_check():
     return {"status": "ok", "message": "Backend is running!"}
 
 
-# --- ⚠️ NUEVO ENDPOINT DE DIAGNÓSTICO ⚠️ ---
-@app.get("/test-env")
-def test_env_vars():
-    """
-    Imprime las variables de entorno en el log de Render.
-    """
-    print("--- INICIANDO PRUEBA DE VARIABLES DE ENTORNO ---")
-    
-    url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_KEY")
-    
-    print(f"SUPABASE_URL: {url}")
-    print(f"SUPABASE_KEY (primeros 5 caracteres): {key[:5] if key else 'None'}")
-    
-    if not url or not key:
-        print("ERROR: Variables de Supabase NO encontradas.")
-        raise HTTPException(status_code=500, detail="Variables de entorno de Supabase no configuradas.")
-        
-    print("--- PRUEBA DE VARIABLES DE ENTORNO FINALIZADA ---")
-    return {"message": "Variables de entorno presentes. Revisa los logs de Render."}
-# --- FIN DEL ENDPOINT DE DIAGNÓSTICO ---
-
-
 @app.get("/cultivos")
 def get_cultivos():
     """
@@ -81,20 +61,24 @@ def get_cultivos():
 
 
 @app.post("/cultivos")
-def create_cultivo(cultivo: CultivoCreate):
+def create_cultivo(cultivo: CultivoCreate): # 3. Usa el nuevo modelo Pydantic
     """
-    Crea un nuevo cultivo en la base de datos.
+    Crea un nuevo cultivo en la base de datos CON LOS NUEVOS DATOS.
     """
     try:
+        # 4. Diccionario de datos ACTUALIZADO
         data_to_insert = {
-            "name": cultivo.name,
-            "location": cultivo.location,
-            "imageUrl": str(cultivo.imageUrl),
+            "name": cultivo.nombre,
+            "location": cultivo.ubicacion,
+            "plantas": cultivo.plantas,
+            "deviceId": cultivo.deviceId,
+            
+            # Valores por defecto para el resto
             "status": "Iniciando",
             "statusColor": "text-gray-500",
             "temp": "N/A",
             "humidity": "N/A",
-        "nutrients": "N/A",
+            "nutrients": "N/A",
             "waterLevel": "N/A"
         }
         
