@@ -18,7 +18,6 @@ class CultivoCreate(BaseModel):
 # --- Tu aplicación FastAPI ---
 app = FastAPI()
 
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
 # Añade las DOS URLs de Vercel (la de preview y la de producción)
 origins = [
     "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app", # Tu URL de "preview"
@@ -34,10 +33,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# --- FIN DEL ARREGLO DE CORS ---
+
 
 
 # --- ENDPOINTS ---
+
+# Endpoint raíz para la prueba de salud de Render
+@app.get("/")
+def health_check():
+    """
+    Responde 200 OK a la prueba de salud de Render.
+    """
+    return {"status": "ok", "message": "Backend is running!"}
+# --- FIN DEL ARREGLO ---
 
 @app.get("/cultivos")
 def get_cultivos():
