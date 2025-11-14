@@ -4,7 +4,6 @@ import Button from '../../components/common/Button';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// --- ¡NUEVA FUNCIÓN! ---
 // Esta función decide qué imagen mostrar basándose en la lista de plantas
 // Usamos las URLs de tus maquetas originales
 const getVisualImageUrl = (plantas) => {
@@ -74,7 +73,6 @@ function MisCultivosPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         
                         {cultivos.map(cultivo => {
-                            // --- ¡LÓGICA VISUAL AQUÍ! ---
                             // Generamos la URL de la imagen en el momento
                             const visualImageUrl = getVisualImageUrl(cultivo.plantas);
 

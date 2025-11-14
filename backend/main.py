@@ -1,5 +1,5 @@
 import os
-import json # <-- Importar json
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
@@ -11,34 +11,20 @@ import vertexai
 from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
 import vertexai.generative_models as generative_models
 
-
-# --- ⚠️ NUEVA CONFIGURACIÓN DE CREDENCIALES ⚠️ ---
-# Render no puede usar un archivo JSON, así que lo creamos al arrancar
-# desde la variable de entorno que contiene el JSON como string.
-
+# --- Configuración de Credenciales ---
 SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
 if SERVICE_ACCOUNT_JSON_STRING:
     try:
-        # Convertir el string JSON en un diccionario Python
         service_account_info = json.loads(SERVICE_ACCOUNT_JSON_STRING)
-        
-        # Definir la ruta del archivo temporal (Render permite escribir en /tmp)
         temp_file_path = "/tmp/service_account.json"
-        
-        # Escribir el diccionario como JSON en el archivo temporal
         with open(temp_file_path, "w") as f:
             json.dump(service_account_info, f)
-            
-        # Establecer la variable de entorno que la biblioteca SÍ lee
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
         print("Credenciales de Google configuradas exitosamente desde JSON.")
-        
     except Exception as e:
         print(f"ERROR: No se pudo escribir el JSON de credenciales: {e}")
 else:
     print("ADVERTENCIA: GOOGLE_APPLICATION_CREDENTIALS_JSON no está configurada. El Chatbot no funcionará.")
-# --- FIN DE LA CONFIGURACIÓN DE CREDENCIALES ---
-
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
@@ -48,11 +34,9 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    # La autenticación ahora funcionará gracias al archivo temporal
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
 else:
     print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
-
 
 # --- Modelos de Datos Pydantic ---
 class CultivoCreate(BaseModel):
@@ -129,7 +113,6 @@ def create_cultivo_api(cultivo: CultivoCreate):
         raise HTTPException(status_code=500, detail=result)
     return result
 
-
 # --- 🤖 NUEVO ENDPOINT DE CHATBOT (Versión Vertex AI) 🤖 ---
 
 # 1. Define las "Herramientas" (Sintaxis de Vertex AI)
@@ -154,11 +137,14 @@ tool_create_cultivo = FunctionDeclaration(
 )
 
 # 2. Inicializa el modelo de IA con las herramientas
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
+# Cambiamos a "gemini-1.5-pro-latest"
 model = GenerativeModel(
-    "gemini-1.0-pro",  # Usamos el modelo estable de Vertex AI
+    "gemini-1.5-pro-latest",
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
     tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
 )
+# --- FIN DEL ARREGLO ---
 
 # 3. Mapea los nombres de las herramientas a las funciones de Python
 available_tools = {
