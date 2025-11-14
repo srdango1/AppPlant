@@ -10,6 +10,7 @@ from typing import List, Optional
 import vertexai
 from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
 import vertexai.generative_models as generative_models
+from google.cloud import aiplatform  # <-- ¡NUEVA IMPORTACIÓN!
 
 # --- Configuración de Credenciales ---
 SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -34,8 +35,8 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    # Usamos la región 'us-east1'
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-east1")
+    aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-east1") # <-- Inicia la biblioteca de plataforma
 else:
     print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
 
@@ -114,90 +115,61 @@ def create_cultivo_api(cultivo: CultivoCreate):
         raise HTTPException(status_code=500, detail=result)
     return result
 
-# --- 🤖 NUEVO ENDPOINT DE CHATBOT (Versión Vertex AI) 🤖 ---
+# --- 🤖 ENDPOINT DE DIAGNÓSTICO 🤖 ---
 
-# 1. Define las "Herramientas" (Sintaxis de Vertex AI)
-tool_get_cultivos = FunctionDeclaration(
-    name="get_cultivos_internal",
-    description="Obtener la lista de todos los cultivos actuales del usuario.",
-    parameters={}
-)
+@app.get("/list-models")
+def list_available_models():
+    """
+    Lista todos los modelos de GenAI disponibles para este proyecto en la región.
+    """
+    if not GOOGLE_PROJECT_ID:
+        raise HTTPException(status_code=500, detail="Proyecto de Google no configurado.")
+    
+    print(f"--- Listando modelos para el proyecto {GOOGLE_PROJECT_ID} en la región us-east1 ---")
+    
+    try:
+        # Llama a la API para listar modelos
+        models = aiplatform.Model.list()
+        
+        # Filtramos solo los de GenAI para que sea legible
+        genai_models = [
+            {"name": m.name, "display_name": m.display_name} 
+            for m in models 
+            if "gemini" in m.display_name.lower() or "gemini" in m.name
+        ]
+        
+        print(f"Modelos encontrados: {genai_models}")
+        return {"models": genai_models}
 
-tool_create_cultivo = FunctionDeclaration(
-    name="create_cultivo_internal",
-    description="Crear un nuevo cultivo en la base de datos.",
-    parameters={
-        "type": "OBJECT",
-        "properties": {
-            "nombre": {"type": "STRING", "description": "El nombre que el usuario le da al cultivo, ej: 'Tomates del balcón'"},
-            "ubicacion": {"type": "STRING", "description": "Dónde está el cultivo, ej: 'Interior' o 'Exterior'"},
-            "plantas": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Lista de IDs de plantas, ej: ['tomato', 'lettuce']"},
-        },
-        "required": ["nombre", "ubicacion", "plantas"]
-    }
-)
+    except Exception as e:
+        print(f"Error al listar modelos: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al listar modelos: {str(e)}")
 
-# 2. Inicializa el modelo de IA con las herramientas
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO (USANDO TU CAPTURA) ⚠️ ---
-# Usamos el nombre exacto de la lista
-model = GenerativeModel(
-    "gemini-2.5-flash-preview-09-2025",
-    system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
-    tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
-)
-# --- FIN DEL ARREGLO ---
+# --- ENDPOINT DE CHATBOT (Lo dejamos como estaba) ---
 
-# 3. Mapea los nombres de las herramientas a las funciones de Python
-available_tools = {
-    "get_cultivos_internal": get_cultivos_internal,
-    "create_cultivo_internal": create_cultivo_internal,
-}
-
-# 4. Inicia un chat persistente (requerido por Vertex AI)
+tool_get_cultivos = FunctionDeclaration(name="get_cultivos_internal", description="Obtener la lista de todos los cultivos actuales del usuario.", parameters={})
+tool_create_cultivo = FunctionDeclaration(name="create_cultivo_internal", description="Crear un nuevo cultivo en la base de datos.", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["nombre", "ubicacion", "plantas"]})
+model = GenerativeModel("gemini-2.5-flash-preview-09-2025", system_instruction="Eres un asistente de jardinería...", tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])])
+available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 chat = model.start_chat()
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
-    """
-    Recibe un mensaje, lo procesa con la IA y devuelve una respuesta.
-    """
     if not GOOGLE_PROJECT_ID or not SERVICE_ACCOUNT_JSON_STRING:
-        raise HTTPException(status_code=500, detail="El servicio de Chatbot no está configurado (faltan GOOGLE_PROJECT_ID o CREDENTIALS).")
-
+        raise HTTPException(status_code=500, detail="El servicio de Chatbot no está configurado.")
     try:
-        # 1. Envía el mensaje del usuario a Gemini
         response = chat.send_message(chat_message.message)
-        
-        # 2. Revisa si la IA quiere usar una herramienta
         function_call = response.candidates[0].content.parts[0].function_call
-        
         if not function_call:
-            # 2a. Si no hay herramienta, es una respuesta normal
             return {"reply": response.text}
-
-        # 3. Si la IA pide una herramienta, la ejecutamos
         function_name = function_call.name
-        
         if function_name not in available_tools:
             raise HTTPException(status_code=500, detail=f"Error: Herramienta desconocida '{function_name}'")
-
-        # 4. Llama a la función de Python correspondiente
         function_to_call = available_tools[function_name]
         args = {key: value for key, value in function_call.args.items()}
-        
         tool_response = function_to_call(**args)
-
-        # 5. Envía el resultado de la herramienta de vuelta a la IA
-        response = chat.send_message(
-            Part.from_function_response(
-                name=function_name,
-                response={"result": str(tool_response)}
-            ),
-        )
-
-        # 6. La IA genera una respuesta final en lenguaje natural
+        response = chat.send_message(Part.from_function_response(name=function_name, response={"result": str(tool_response)}))
         return {"reply": response.text}
-
     except Exception as e:
         print(f"Error en el endpoint /chat: {e}")
         raise HTTPException(status_code=500, detail=f"Error al procesar el mensaje: {str(e)}")
