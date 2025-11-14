@@ -135,17 +135,35 @@ def list_available_models():
 
 # --- 🤖 ENDPOINT DE CHATBOT (Con el nombre de modelo ESTABLE) 🤖 ---
 
-tool_get_cultivos = FunctionDeclaration(name="get_cultivos_internal", description="Obtener la lista de todos los cultivos actuales del usuario.", parameters={})
-tool_create_cultivo = FunctionDeclaration(name="create_cultivo_internal", description="Crear un nuevo cultivo en la base de datos.", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["nombre", "ubicacion", "plantas"]})
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
+# Le decimos a Google que la función 'get_cultivos_internal'
+# toma un objeto vacío como parámetro, en lugar de solo "{}"
+tool_get_cultivos = FunctionDeclaration(
+    name="get_cultivos_internal",
+    description="Obtener la lista de todos los cultivos actuales del usuario.",
+    parameters={"type": "OBJECT", "properties": {}} # <-- ARREGLADO
+)
+# --- FIN DEL ARREGLO ---
 
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO (Usando tu lista de modelos estables) ⚠️ ---
-# Usamos "gemini-2.5-flash"
+tool_create_cultivo = FunctionDeclaration(
+    name="create_cultivo_internal",
+    description="Crear un nuevo cultivo en la base de datos.",
+    parameters={
+        "type": "OBJECT",
+        "properties": {
+            "nombre": {"type": "STRING", "description": "El nombre que el usuario le da al cultivo, ej: 'Tomates del balcón'"},
+            "ubicacion": {"type": "STRING", "description": "Dónde está el cultivo, ej: 'Interior' o 'Exterior'"},
+            "plantas": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Lista de IDs de plantas, ej: ['tomato', 'lettuce']"},
+        },
+        "required": ["nombre", "ubicacion", "plantas"]
+    }
+)
+
 model = GenerativeModel(
     "gemini-2.5-flash",
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
     tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
 )
-# --- FIN DEL ARREGLO ---
 
 available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 chat = model.start_chat()
