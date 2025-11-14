@@ -96,6 +96,7 @@ def create_cultivo_api(cultivo: CultivoCreate):
     return result
 
 
+# --- 🤖 NUEVO ENDPOINT DE CHATBOT 🤖 ---
 
 # 1. Define las "Herramientas" que la IA puede usar
 tools = [
@@ -124,11 +125,14 @@ tools = [
 ]
 
 # 2. Inicializa el modelo de IA con las herramientas
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO (CUARTO INTENTO) ⚠️ ---
+# Usamos el nombre completo del modelo
 model = genai.GenerativeModel(
-    model_name='gemini-pro',
+    model_name='models/gemini-pro',
     tools=tools,
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español."
 )
+# --- FIN DEL ARREGLO ---
 
 # 3. Mapea los nombres de las herramientas a las funciones de Python
 available_tools = {
