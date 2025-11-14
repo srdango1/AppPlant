@@ -5,20 +5,23 @@ from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Google AI (Gemini) ---
-import google.generativeai as genai
+# --- Importaciones de Google Vertex AI ---
+import vertexai
+from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
+import vertexai.generative_models as generative_models
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# --- Configuración de Google AI (Gemini) ---
-gemini_api_key = os.environ.get("GEMINI_API_KEY")
-if not gemini_api_key:
-    print("ADVERTENCIA: GEMINI_API_KEY no está configurada. El Chatbot no funcionará.")
+# --- Configuración de Google Vertex AI ---
+GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
+# La autenticación (GOOGLE_APPLICATION_CREDENTIALS_JSON) se maneja automáticamente
+if GOOGLE_PROJECT_ID:
+    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
 else:
-    genai.configure(api_key=gemini_api_key)
+    print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
 
 # --- Modelos de Datos Pydantic ---
 class CultivoCreate(BaseModel):
@@ -79,7 +82,7 @@ def health_check():
 @app.get("/cultivos")
 def get_cultivos_api():
     result = get_cultivos_internal()
-    if isinstance(result, str): # Si es un string, es un error
+    if isinstance(result, str):
         raise HTTPException(status_code=500, detail=result)
     return result
 
@@ -91,48 +94,40 @@ def create_cultivo_api(cultivo: CultivoCreate):
         plantas=cultivo.plantas,
         deviceId=cultivo.deviceId
     )
-    if isinstance(result, str): # Si es un string, es un error
+    if isinstance(result, str):
         raise HTTPException(status_code=500, detail=result)
     return result
 
 
-# --- 🤖 NUEVO ENDPOINT DE CHATBOT 🤖 ---
+# --- 🤖 NUEVO ENDPOINT DE CHATBOT (Versión Vertex AI) 🤖 ---
 
-# 1. Define las "Herramientas" que la IA puede usar
-tools = [
-    {
-        "function_declarations": [
-            {
-                "name": "get_cultivos_internal",
-                "description": "Obtener la lista de todos los cultivos actuales del usuario.",
-                "parameters": {"type": "OBJECT", "properties": {}}
-            },
-            {
-                "name": "create_cultivo_internal",
-                "description": "Crear un nuevo cultivo en la base de datos.",
-                "parameters": {
-                    "type": "OBJECT",
-                    "properties": {
-                        "nombre": {"type": "STRING", "description": "El nombre que el usuario le da al cultivo, ej: 'Tomates del balcón'"},
-                        "ubicacion": {"type": "STRING", "description": "Dónde está el cultivo, ej: 'Interior' o 'Exterior'"},
-                        "plantas": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Lista de IDs de plantas, ej: ['tomato', 'lettuce']"},
-                    },
-                    "required": ["nombre", "ubicacion", "plantas"]
-                }
-            }
-        ]
+# 1. Define las "Herramientas" (Sintaxis de Vertex AI)
+tool_get_cultivos = FunctionDeclaration(
+    name="get_cultivos_internal",
+    description="Obtener la lista de todos los cultivos actuales del usuario.",
+    parameters={}
+)
+
+tool_create_cultivo = FunctionDeclaration(
+    name="create_cultivo_internal",
+    description="Crear un nuevo cultivo en la base de datos.",
+    parameters={
+        "type": "OBJECT",
+        "properties": {
+            "nombre": {"type": "STRING", "description": "El nombre que el usuario le da al cultivo, ej: 'Tomates del balcón'"},
+            "ubicacion": {"type": "STRING", "description": "Dónde está el cultivo, ej: 'Interior' o 'Exterior'"},
+            "plantas": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Lista de IDs de plantas, ej: ['tomato', 'lettuce']"},
+        },
+        "required": ["nombre", "ubicacion", "plantas"]
     }
-]
+)
 
 # 2. Inicializa el modelo de IA con las herramientas
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO (CUARTO INTENTO) ⚠️ ---
-# Usamos el nombre completo del modelo
-model = genai.GenerativeModel(
-    model_name='models/gemini-pro',
-    tools=tools,
-    system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español."
+model = GenerativeModel(
+    "gemini-1.0-pro",  # Usamos el modelo estable de Vertex AI
+    system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
+    tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
 )
-# --- FIN DEL ARREGLO ---
 
 # 3. Mapea los nombres de las herramientas a las funciones de Python
 available_tools = {
@@ -140,21 +135,20 @@ available_tools = {
     "create_cultivo_internal": create_cultivo_internal,
 }
 
+# 4. Inicia un chat persistente (requerido por Vertex AI)
+chat = model.start_chat()
+
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
     """
     Recibe un mensaje, lo procesa con la IA y devuelve una respuesta.
-    Maneja "tool calling" para get_cultivos y create_cultivo.
     """
-    if not gemini_api_key:
-        raise HTTPException(status_code=500, detail="El servicio de Chatbot no está configurado (falta GEMINI_API_KEY).")
+    if not GOOGLE_PROJECT_ID:
+        raise HTTPException(status_code=500, detail="El servicio de Chatbot no está configurado (falta GOOGLE_PROJECT_ID).")
 
-    user_message = chat_message.message
-    
     try:
         # 1. Envía el mensaje del usuario a Gemini
-        chat = model.start_chat()
-        response = chat.send_message(user_message)
+        response = chat.send_message(chat_message.message)
         
         # 2. Revisa si la IA quiere usar una herramienta
         function_call = response.candidates[0].content.parts[0].function_call
@@ -165,25 +159,21 @@ def handle_chat_message(chat_message: ChatMessage):
 
         # 3. Si la IA pide una herramienta, la ejecutamos
         function_name = function_call.name
-        args = function_call.args
         
         if function_name not in available_tools:
             raise HTTPException(status_code=500, detail=f"Error: Herramienta desconocida '{function_name}'")
 
         # 4. Llama a la función de Python correspondiente
         function_to_call = available_tools[function_name]
+        args = {key: value for key, value in function_call.args.items()}
         
-        # Convertir los argumentos (que son un tipo especial) a un dict de Python
-        args_dict = {key: value for key, value in args.items()}
-        
-        # Llama a la función (ej: create_cultivo_internal(...))
-        tool_response = function_to_call(**args_dict)
+        tool_response = function_to_call(**args)
 
         # 5. Envía el resultado de la herramienta de vuelta a la IA
         response = chat.send_message(
-            part=genai.types.FunctionResponse(
+            Part.from_function_response(
                 name=function_name,
-                response={"result": str(tool_response)} # Le pasamos el resultado
+                response={"result": str(tool_response)}
             ),
         )
 
