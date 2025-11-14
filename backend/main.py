@@ -34,7 +34,10 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
+    # --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
+    # Cambiamos la región de 'us-central1' a 'us-east1'
+    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-east1")
+    # --- FIN DEL ARREGLO ---
 else:
     print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
 
@@ -137,14 +140,11 @@ tool_create_cultivo = FunctionDeclaration(
 )
 
 # 2. Inicializa el modelo de IA con las herramientas
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
-# Cambiamos a "gemini-1.5-pro-latest"
 model = GenerativeModel(
-    "gemini-1.5-pro-latest",
+    "gemini-1.5-flash-latest",
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
     tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
 )
-# --- FIN DEL ARREGLO ---
 
 # 3. Mapea los nombres de las herramientas a las funciones de Python
 available_tools = {
