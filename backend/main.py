@@ -35,7 +35,7 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    # Usamos 'us-central1' que es la región por defecto
+    # Mantenemos 'us-central1', la región por defecto
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
     aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
 else:
@@ -117,7 +117,6 @@ def create_cultivo_api(cultivo: CultivoCreate):
     return result
 
 # --- 🤖 ENDPOINT DE DIAGNÓSTICO 🤖 ---
-# (Este endpoint está fallando porque la cuenta de servicio no tiene permiso para LISTAR, pero sí para USAR)
 @app.get("/list-models")
 def list_available_models():
     if not GOOGLE_PROJECT_ID:
@@ -134,15 +133,15 @@ def list_available_models():
         print(f"Error al listar modelos: {e}")
         raise HTTPException(status_code=500, detail=f"Error al listar modelos: {str(e)}")
 
-# --- 🤖 ENDPOINT DE CHATBOT (Con el nombre de modelo CORRECTO) 🤖 ---
+# --- 🤖 ENDPOINT DE CHATBOT (Con el nombre de modelo ESTABLE) 🤖 ---
 
 tool_get_cultivos = FunctionDeclaration(name="get_cultivos_internal", description="Obtener la lista de todos los cultivos actuales del usuario.", parameters={})
 tool_create_cultivo = FunctionDeclaration(name="create_cultivo_internal", description="Crear un nuevo cultivo en la base de datos.", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["nombre", "ubicacion", "plantas"]})
 
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
-# Usamos el nombre exacto que FUNCIONA en la interfaz web de Google
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO (Usando tu lista de modelos estables) ⚠️ ---
+# Usamos "gemini-2.5-flash"
 model = GenerativeModel(
-    "gemini-2.5-flash-preview-09-2025",
+    "gemini-2.5-flash",
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
     tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
 )
