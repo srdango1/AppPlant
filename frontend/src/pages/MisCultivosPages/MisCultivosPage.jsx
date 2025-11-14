@@ -49,15 +49,14 @@ function MisCultivosPage() {
         fetchCultivos();
     }, []);
 
-    // 3. --- CÓDIGO CORRECTO ---
-    // Este useEffect escucha el evento global 'cultivoActualizado'
+    // 3. Este useEffect escucha el evento global 'cultivoActualizado'
     useEffect(() => {
         const handleCultivoActualizado = () => {
             console.log("Evento 'cultivoActualizado' recibido. Recargando cultivos...");
             fetchCultivos(); // Vuelve a cargar los datos
         };
 
-        // Añade el "listener" (aquí es donde podría estar el error de "listen")
+        // Añade el "listener"
         window.addEventListener('cultivoActualizado', handleCultivoActualizado);
 
         // Limpia el "listener" cuando el componente se desmonta

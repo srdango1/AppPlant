@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 
-// ... (imports)
+// URL del backend
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function ChatBot() {
-    // ... (todos tus useState)
+    const [isOpen, setIsOpen] = useState(false);
+    const [messages, setMessages] = useState([
+        { from: 'bot', text: '¡Hola! Soy PlantCare. ¿En qué puedo ayudarte hoy?' }
+    ]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const toggleChat = () => setIsOpen(!isOpen);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -16,6 +23,7 @@ function ChatBot() {
         setIsLoading(true);
 
         try {
+            // Llama al nuevo endpoint /chat del backend
             const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -27,11 +35,10 @@ function ChatBot() {
                 throw new Error(errData.detail || 'Error en la respuesta del bot');
             }
 
-            const data = await response.json(); // data ahora es { reply: "...", action_performed: "create" }
+            const data = await response.json();
             const botMessage = { from: 'bot', text: data.reply };
             setMessages(prev => [...prev, botMessage]);
 
-            // --- ¡NUEVO! ---
             // Si el backend nos avisa que se creó un cultivo, disparamos el evento
             if (data.action_performed === 'create') {
                 window.dispatchEvent(new CustomEvent('cultivoActualizado'));
@@ -54,7 +61,7 @@ function ChatBot() {
         width: '4rem',
         height: '4rem',
         borderRadius: '50%',
-        backgroundColor: 'var(--color-primary, #078827)', // Asumiendo que tienes una variable CSS, si no, usa un color
+        backgroundColor: 'rgb(7, 136, 39)', // Color primario
         color: 'white',
         display: 'flex',
         alignItems: 'center',
@@ -101,7 +108,7 @@ function ChatBot() {
         borderRadius: '18px',
         maxWidth: '80%',
         alignSelf: from === 'bot' ? 'flex-start' : 'flex-end',
-        backgroundColor: from === 'bot' ? '#f0f0f0' : 'var(--color-primary, #078827)',
+        backgroundColor: from === 'bot' ? '#f0f0f0' : 'rgb(7, 136, 39)', // Color primario
         color: from === 'bot' ? '#333' : 'white',
     });
 
@@ -139,7 +146,7 @@ function ChatBot() {
                         style={{ flex: 1, border: '1px solid #ddd', borderRadius: '18px', padding: '0.75rem', marginRight: '0.5rem' }}
                     />
                     <button type="submit" style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '0.5rem' }}>
-                        <span className="material-symbols-outlined text-primary">send</span>
+                        <span className="material-symbols-outlined" style={{color: 'rgb(7, 136, 39)'}}>send</span>
                     </button>
                 </form>
             </div>
