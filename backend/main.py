@@ -35,11 +35,9 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    # --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
-    # Volvemos a 'us-central1', la región por defecto
+    # Usamos 'us-central1' que es la región por defecto
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
     aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
-    # --- FIN DEL ARREGLO ---
 else:
     print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
 
@@ -119,17 +117,11 @@ def create_cultivo_api(cultivo: CultivoCreate):
     return result
 
 # --- 🤖 ENDPOINT DE DIAGNÓSTICO 🤖 ---
-
+# (Este endpoint está fallando porque la cuenta de servicio no tiene permiso para LISTAR, pero sí para USAR)
 @app.get("/list-models")
 def list_available_models():
-    """
-    Lista todos los modelos de GenAI disponibles para este proyecto en la región.
-    """
     if not GOOGLE_PROJECT_ID:
         raise HTTPException(status_code=500, detail="Proyecto de Google no configurado.")
-    
-    print(f"--- Listando modelos para el proyecto {GOOGLE_PROJECT_ID} en la región us-central1 ---")
-    
     try:
         models = aiplatform.Model.list()
         genai_models = [
@@ -137,19 +129,25 @@ def list_available_models():
             for m in models 
             if "gemini" in m.display_name.lower() or "gemini" in m.name
         ]
-        
-        print(f"Modelos encontrados: {genai_models}")
         return {"models": genai_models}
-
     except Exception as e:
         print(f"Error al listar modelos: {e}")
         raise HTTPException(status_code=500, detail=f"Error al listar modelos: {str(e)}")
 
-# --- ENDPOINT DE CHATBOT (Usando el modelo 'gemini-1.5-flash-latest' como base) ---
+# --- 🤖 ENDPOINT DE CHATBOT (Con el nombre de modelo CORRECTO) 🤖 ---
 
 tool_get_cultivos = FunctionDeclaration(name="get_cultivos_internal", description="Obtener la lista de todos los cultivos actuales del usuario.", parameters={})
 tool_create_cultivo = FunctionDeclaration(name="create_cultivo_internal", description="Crear un nuevo cultivo en la base de datos.", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["nombre", "ubicacion", "plantas"]})
-model = GenerativeModel("gemini-1.5-flash-latest", system_instruction="Eres un asistente de jardinería...", tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])])
+
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
+# Usamos el nombre exacto que FUNCIONA en la interfaz web de Google
+model = GenerativeModel(
+    "gemini-2.5-flash-preview-09-2025",
+    system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
+    tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
+)
+# --- FIN DEL ARREGLO ---
+
 available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 chat = model.start_chat()
 
