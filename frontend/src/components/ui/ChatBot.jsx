@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
 
-// URL del backend
+// ... (imports)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function ChatBot() {
-    const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([
-        { from: 'bot', text: '¡Hola! Soy PlantCare. ¿En qué puedo ayudarte hoy?' }
-    ]);
-    const [input, setInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-
-    const toggleChat = () => setIsOpen(!isOpen);
+    // ... (todos tus useState)
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,7 +16,6 @@ function ChatBot() {
         setIsLoading(true);
 
         try {
-            // Llama al nuevo endpoint /chat del backend
             const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -35,9 +27,15 @@ function ChatBot() {
                 throw new Error(errData.detail || 'Error en la respuesta del bot');
             }
 
-            const data = await response.json();
+            const data = await response.json(); // data ahora es { reply: "...", action_performed: "create" }
             const botMessage = { from: 'bot', text: data.reply };
             setMessages(prev => [...prev, botMessage]);
+
+            // --- ¡NUEVO! ---
+            // Si el backend nos avisa que se creó un cultivo, disparamos el evento
+            if (data.action_performed === 'create') {
+                window.dispatchEvent(new CustomEvent('cultivoActualizado'));
+            }
 
         } catch (error) {
             console.error('Error al contactar al chatbot:', error);
