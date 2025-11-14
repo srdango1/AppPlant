@@ -138,10 +138,10 @@ tool_create_cultivo = FunctionDeclaration(
 )
 
 # 2. Inicializa el modelo de IA con las herramientas
-# --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
-# Volvemos a "gemini-1.0-pro", pero en la región us-east1
+# --- ⚠️ AQUÍ ESTÁ EL ARREGLO (USANDO TU CAPTURA) ⚠️ ---
+# Usamos el nombre exacto de la lista
 model = GenerativeModel(
-    "gemini-1.0-pro",
+    "gemini-2.5-flash-preview-09-2025",
     system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español.",
     tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
 )
