@@ -10,7 +10,7 @@ from typing import List, Optional
 import vertexai
 from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
 import vertexai.generative_models as generative_models
-from google.cloud import aiplatform  # <-- ¡NUEVA IMPORTACIÓN!
+from google.cloud import aiplatform
 
 # --- Configuración de Credenciales ---
 SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -35,8 +35,11 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-east1")
-    aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-east1") # <-- Inicia la biblioteca de plataforma
+    # --- ⚠️ AQUÍ ESTÁ EL ARREGLO ⚠️ ---
+    # Volvemos a 'us-central1', la región por defecto
+    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
+    aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
+    # --- FIN DEL ARREGLO ---
 else:
     print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
 
@@ -125,13 +128,10 @@ def list_available_models():
     if not GOOGLE_PROJECT_ID:
         raise HTTPException(status_code=500, detail="Proyecto de Google no configurado.")
     
-    print(f"--- Listando modelos para el proyecto {GOOGLE_PROJECT_ID} en la región us-east1 ---")
+    print(f"--- Listando modelos para el proyecto {GOOGLE_PROJECT_ID} en la región us-central1 ---")
     
     try:
-        # Llama a la API para listar modelos
         models = aiplatform.Model.list()
-        
-        # Filtramos solo los de GenAI para que sea legible
         genai_models = [
             {"name": m.name, "display_name": m.display_name} 
             for m in models 
@@ -145,11 +145,11 @@ def list_available_models():
         print(f"Error al listar modelos: {e}")
         raise HTTPException(status_code=500, detail=f"Error al listar modelos: {str(e)}")
 
-# --- ENDPOINT DE CHATBOT (Lo dejamos como estaba) ---
+# --- ENDPOINT DE CHATBOT (Usando el modelo 'gemini-1.5-flash-latest' como base) ---
 
 tool_get_cultivos = FunctionDeclaration(name="get_cultivos_internal", description="Obtener la lista de todos los cultivos actuales del usuario.", parameters={})
 tool_create_cultivo = FunctionDeclaration(name="create_cultivo_internal", description="Crear un nuevo cultivo en la base de datos.", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["nombre", "ubicacion", "plantas"]})
-model = GenerativeModel("gemini-2.5-flash-preview-09-2025", system_instruction="Eres un asistente de jardinería...", tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])])
+model = GenerativeModel("gemini-1.5-flash-latest", system_instruction="Eres un asistente de jardinería...", tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])])
 available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 chat = model.start_chat()
 
