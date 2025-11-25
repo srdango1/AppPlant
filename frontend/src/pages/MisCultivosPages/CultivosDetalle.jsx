@@ -1,7 +1,7 @@
 import React from "react";
 import EstadisticasCard from "../../components/ui/EstadisticasCard";
 import ChartCard from "../../components/ui/GraficosCard";
-import DetailsSidebar from "../../components/layout/SideBar";
+import DetailsSidebar from "../../components/layout/CultivosSideBar";
 
 // Array de datos simulados para ver si funciona
 

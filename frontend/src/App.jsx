@@ -8,6 +8,7 @@ import AddCultivoPage from './pages/AddCultivoPage/AddCultivoPage';
 
 // Importa el nuevo componente de ChatBot
 import ChatBot from './components/ui/ChatBot';
+import Inicio from './pages/Inicio';
 
 function App (){
   return(
@@ -15,7 +16,8 @@ function App (){
         <Header/>
         
           <Routes>
-            <Route path='/' element={<MisCultivosPage/>}/>
+            <Route path='/' element={<Inicio/>}/>
+            <Route path='/cultivos' element={<MisCultivosPage/>}/>
             <Route path='/cultivos/nuevo' element={<AddCultivoPage/>}/>
             <Route path='/cultivos/:id' element={<CultivosDetalle/>}/>
           </Routes>

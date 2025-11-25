@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 
 //Import Componentes
 import MisCultivosPage from '../../pages/MisCultivosPages/MisCultivosPage';
+import Inicio from '../../pages/Inicio';
 
 
 const NavLink = ({ href, children }) => (
@@ -25,8 +26,8 @@ function Header() {
       
       {/* Navegación */}
       <nav className="hidden md:flex items-center justify-center flex-1 gap-6">
-        <Link to="#" >Inicio</Link>
-        <Link to="/" element={<MisCultivosPage/>}>Mis Cultivos</Link>
+        <Link to="/" element={<Inicio/>} >Inicio</Link>
+        <Link to="/cultivos" element={<MisCultivosPage/>}>Mis Cultivos</Link>
         <Link to="#" >Estadísticas</Link>
         <Link to="#" >Clima</Link>
         <Link to="#" >Notas</Link>
