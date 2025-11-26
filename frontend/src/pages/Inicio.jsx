@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link } from 'react-router-dom';
 
-import StatsCard from "../components/ui/StatsCard";
-import WeatherWidget from "../components/ui/WeatherWidget";
-import CultivationCard from "../components/ui/CultivationCard";
+import StatsCard from "../components/ui/inicioPage/StatsCard";
+import WeatherWidget from "../components/ui/inicioPage/WeatherWidget";
+import CultivationCard from "../components/ui/climaPage/CultivationCard";
 import Sidebar from "../components/layout/InicioSideBar";
 
 import useWeather from '../hooks/useWeather';
