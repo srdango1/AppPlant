@@ -7,8 +7,16 @@ import CultivationCard from "../components/ui/inicioPage/CultivationCard";
 import Sidebar from "../components/layout/InicioSideBar";
 
 import useWeather from '../hooks/useWeather'
+const MOCK_STATS = {
+    humedad: "68%",
+    temperatura: "23°C",
+    agua: "85%",
+    luz: "750 lux"
+};
 
 function Inicio (){
+    const [cultivos, setCultivos] = useState([]);
+    const [stats, setStats] = useState(MOCK_STATS);
     return(
         <div className="relative flex min-h-screen w-full flex-col">
             <div className="flex flex-1">
