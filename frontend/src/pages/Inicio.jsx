@@ -39,24 +39,9 @@ function Inicio() {
     });
     // ---------------------------------------------------------------
     const { data: weatherData, loading: weatherLoading, error: weatherError } = useWeather('Osorno');
-    const processedWeather = weatherData && !weatherError ? {
-        city: weatherData.city ? weatherData.city.name : 'N/A',
-        temperature: weatherData.current ? Math.round(weatherData.current.temp) : 'N/A',
-        condition: weatherData.current ? weatherData.current.weather[0].description : 'N/A',
-        iconName: weatherData.current ? weatherData.current.weather[0].icon : 'sync',
-        humidity: weatherData.current ? weatherData.current.main.humidity : 'N/A',
-        wind: weatherData.current ? weatherData.current.wind.speed : 'N/A',
-    } : null;
+    
 
-    if (weatherLoading) {
-    return (
-        // Se coloca en la zona donde iría la tarjeta principal
-        <div className="p-6 text-center text-gray-500 border border-dashed rounded-xl">
-            <span className="material-symbols-outlined animate-spin text-xl mr-2">refresh</span>
-            Cargando datos del clima...
-        </div>
-    );
-}
+    
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -104,6 +89,14 @@ function Inicio() {
         return () => window.removeEventListener('cultivoActualizado', handleRecargar);
     }, []);
 
+    const processedWeather = weatherData && !weatherError ? {
+        city: weatherData.city ? weatherData.city.name : 'N/A',
+        temperature: weatherData.current ? Math.round(weatherData.current.temp) : 'N/A',
+        condition: weatherData.current ? weatherData.current.weather[0].description : 'N/A',
+        iconName: weatherData.current ? weatherData.current.weather[0].icon : 'sync',
+        humidity: weatherData.current ? weatherData.current.main.humidity : 'N/A',
+        wind: weatherData.current ? weatherData.current.wind.speed : 'N/A',
+    } : null;
     return (
         <div className="relative flex min-h-screen w-full flex-col">
             <div className="flex flex-1">
@@ -118,8 +111,11 @@ function Inicio() {
                         <StatsCard title="Luz recibida" value={stats.luz} />
                     </div>
                     
-                   {weatherLoading ? (
-                        <p>Cargando clima...</p>
+                  {weatherLoading ? (
+                        <div className="p-6 mb-6 text-center text-gray-500 border border-dashed rounded-xl">
+                            <span className="material-symbols-outlined animate-spin text-xl mr-2">refresh</span>
+                            Cargando datos del clima...
+                        </div>
                     ) : (
                         processedWeather && (
                             <WeatherWidget 
