@@ -1,5 +1,5 @@
 import { useState,useEffect } from "react";
-import conseguirClima from '../api/weather';
+import {fetchWeatherData} from '../api/weather';
 
 const useWeather = (city) => {
     const [data,setData] = useState(null)
