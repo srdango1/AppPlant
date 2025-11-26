@@ -13,6 +13,7 @@ const useWeather = (city) => {
                 // Aquí usamos la función del Paso 1
                 const result = await fetchWeatherData(city); 
                 setData(result);
+                console.log(`✅ Clima recibido para ${city}:`, result);
             } catch (err) {
                 setError(err.message);
             } finally {
