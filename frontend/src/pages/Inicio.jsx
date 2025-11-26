@@ -112,22 +112,31 @@ function Inicio() {
                     </div>
                     
                   {weatherLoading ? (
-                        <div className="p-6 mb-6 text-center text-gray-500 border border-dashed rounded-xl">
-                            <span className="material-symbols-outlined animate-spin text-xl mr-2">refresh</span>
-                            Cargando datos del clima...
+                        // 1. Estado de Carga
+                        <div className="p-6 mb-6 text-center text-gray-500 border border-dashed border-gray-300 rounded-xl">
+                            <span className="material-symbols-outlined animate-spin text-xl mr-2 align-middle">refresh</span>
+                            <span className="align-middle">Cargando datos del clima...</span>
                         </div>
-                    ) : (
-                        processedWeather && (
-                            <WeatherWidget 
-                                city={processedWeather.city}
-                                temperature={processedWeather.temperature}
-                                description={processedWeather.condition}
-                                humidity={processedWeather.humidity}
-                                wind={processedWeather.wind}
-                                iconName={processedWeather.iconName}
-                            />
-                        )
-                    )}
+                    ) : weatherError ? (
+                        // 2. Estado de Error (Nuevo)
+                        <div className="p-6 mb-6 text-center text-red-600 bg-red-50 border border-red-200 rounded-xl">
+                            <p className="font-bold flex items-center justify-center gap-2">
+                                <span className="material-symbols-outlined">warning</span>
+                                No se pudo cargar el clima
+                            </p>
+                            <p className="text-sm mt-1">Verifica tu API Key o la conexión.</p>
+                        </div>
+                    ) : processedWeather ? (
+                        // 3. Estado de Éxito (Mostrar Widget)
+                        <WeatherWidget 
+                            city={processedWeather.city}
+                            temperature={processedWeather.temperature}
+                            description={processedWeather.condition}
+                            humidity={processedWeather.humidity}
+                            wind={processedWeather.wind}
+                            iconName={processedWeather.iconName}
+                        />
+                    ) : null}
 
                     <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Mis Camas de Cultivo</h3>
                     
