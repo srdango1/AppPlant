@@ -6,6 +6,8 @@ import WeatherWidget from "../components/ui/WeatherWidget";
 import CultivationCard from "../components/ui/CultivationCard";
 import Sidebar from "../components/layout/InicioSideBar";
 
+import useWeather from '../hooks/useWeather';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Función para asignar imágenes visuales basadas en la planta
@@ -36,7 +38,25 @@ function Inicio() {
         luz: "0%"
     });
     // ---------------------------------------------------------------
+    const { data: weatherData, loading: weatherLoading, error: weatherError } = useWeather('Osorno');
+    const processedWeather = weatherData && !weatherError ? {
+        city: weatherData.city ? weatherData.city.name : 'N/A',
+        temperature: weatherData.current ? Math.round(weatherData.current.temp) : 'N/A',
+        condition: weatherData.current ? weatherData.current.weather[0].description : 'N/A',
+        iconName: weatherData.current ? weatherData.current.weather[0].icon : 'sync',
+        humidity: weatherData.current ? weatherData.current.main.humidity : 'N/A',
+        wind: weatherData.current ? weatherData.current.wind.speed : 'N/A',
+    } : null;
 
+    if (weatherLoading) {
+    return (
+        // Se coloca en la zona donde iría la tarjeta principal
+        <div className="p-6 text-center text-gray-500 border border-dashed rounded-xl">
+            <span className="material-symbols-outlined animate-spin text-xl mr-2">refresh</span>
+            Cargando datos del clima...
+        </div>
+    );
+}
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -98,7 +118,20 @@ function Inicio() {
                         <StatsCard title="Luz recibida" value={stats.luz} />
                     </div>
                     
-                    <WeatherWidget />
+                   {weatherLoading ? (
+                        <p>Cargando clima...</p>
+                    ) : (
+                        processedWeather && (
+                            <WeatherWidget 
+                                city={processedWeather.city}
+                                temperature={processedWeather.temperature}
+                                description={processedWeather.condition}
+                                humidity={processedWeather.humidity}
+                                wind={processedWeather.wind}
+                                iconName={processedWeather.iconName}
+                            />
+                        )
+                    )}
 
                     <h3 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Mis Camas de Cultivo</h3>
                     
@@ -122,7 +155,7 @@ function Inicio() {
                         )}
                     </div>
                 </main>
-                <Sidebar />
+                <Sidebar currentWeatherData={processedWeather} />
             </div>
         </div>
     );
