@@ -1,11 +1,22 @@
 import React from "react";
 
-import StatsCard from "../components/ui/StatsCard"
-import WeatherWidget from "../components/ui/WeatherWidget";
-import CultivationCard from "../components/ui/CultivationCard";
+import StatsCard from "../components/ui/inicioPage/StatsCard"
+import WeatherWidget from "../components/ui/inicioPage/WeatherWidget";
+import CultivationCard from "../components/ui/inicioPage/CultivationCard";
 import Sidebar from "../components/layout/InicioSideBar";
 
+import useWeather from '../hooks/useWeather'
+
 function Inicio (){
+    const defaultCity = 'Osorno,cl';
+    const {data, loading,error}= useWeather(defaultCity)
+
+    if (loading) return <div>Cargando el dashboard...</div>;
+    if (error) return <div>Error al cargar datos: {error}</div>;
+
+    const currentSummary = data.current;
+    const hourlyForecast = data.hourly;
+
     return(
         <div className="relative flex min-h-screen w-full flex-col">
             
@@ -17,7 +28,7 @@ function Inicio (){
                         <StatsCard title="Nivel de agua" value="80%" />
                         <StatsCard title="Luz recibida" value="75%" />
                     </div>
-                    <WeatherWidget/>
+                    <WeatherWidget rawData ={hourlyForecast}/>
 
                     <h3 className="text-xl font-bold mb-4">Mis Camas de Cultivo</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -27,7 +38,7 @@ function Inicio (){
 
                     </div>
                 </main>
-                <Sidebar/>
+                <Sidebar weatherSummary={currentSummary}/>
             </div>
         </div>
     )
