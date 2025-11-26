@@ -20,11 +20,8 @@ if SERVICE_ACCOUNT_JSON_STRING:
         with open(temp_file_path, "w") as f:
             json.dump(service_account_info, f)
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
-        print("Credenciales de Google configuradas exitosamente desde JSON.")
     except Exception as e:
-        print(f"ERROR: No se pudo escribir el JSON de credenciales: {e}")
-else:
-    print("ADVERTENCIA: GOOGLE_APPLICATION_CREDENTIALS_JSON no está configurada. El Chatbot no funcionará.")
+        print(f"ERROR JSON: {e}")
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
@@ -36,10 +33,8 @@ GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
     aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
-else:
-    print("ADVERTENCIA: GOOGLE_PROJECT_ID no está configurado. El Chatbot no funcionará.")
 
-# --- Modelos de Datos Pydantic ---
+# --- Modelos Pydantic ---
 class CultivoCreate(BaseModel):
     nombre: str
     ubicacion: str
@@ -49,11 +44,8 @@ class CultivoCreate(BaseModel):
 class ChatMessage(BaseModel):
     message: str
 
-
-# --- Tu aplicación FastAPI ---
 app = FastAPI()
 
-# --- Configuración de CORS ---
 origins = [
     "https://app-plant.vercel.app",
     "https://app-plant-h0kauq1d7-christofer-s-projects-18d2340e.vercel.app",
@@ -68,16 +60,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- HERRAMIENTAS ---
 def get_cultivos_internal():
     """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
         response = supabase.table('cultivos').select("*").execute()
-        return response.data if response.data else []
+        return str(response.data) if response.data else "No hay cultivos registrados."
     except Exception as e:
         return f"Error al obtener cultivos: {str(e)}"
 
 def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], deviceId: Optional[str] = None):
-    """Crea un nuevo cultivo en la base de datos."""
+    """Crea un nuevo cultivo."""
     try:
         data_to_insert = {
             "name": nombre, "location": ubicacion, "plantas": plantas, "deviceId": deviceId,
@@ -89,117 +82,80 @@ def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], dev
     except Exception as e:
         return f"Error al crear cultivo: {str(e)}"
 
-
+# --- ENDPOINTS API ---
 @app.get("/")
-def health_check():
-    return {"status": "ok", "message": "Backend is running!"}
+def health_check(): return {"status": "ok", "message": "Backend is running!"}
 @app.get("/cultivos")
-def get_cultivos_api():
-    result = get_cultivos_internal()
-    if isinstance(result, str): raise HTTPException(status_code=500, detail=result)
-    return result
+def get_cultivos_api(): return get_cultivos_internal()
 @app.post("/cultivos")
-def create_cultivo_api(cultivo: CultivoCreate):
-    result = create_cultivo_internal(nombre=cultivo.nombre, ubicacion=cultivo.ubicacion, plantas=cultivo.plantas, deviceId=cultivo.deviceId)
-    if isinstance(result, str): raise HTTPException(status_code=500, detail=result)
-    return result
-@app.get("/list-models")
-def list_available_models():
-    # ... (código de list-models)
-    if not GOOGLE_PROJECT_ID: raise HTTPException(status_code=500, detail="Proyecto de Google no configurado.")
-    try:
-        models = aiplatform.Model.list()
-        genai_models = [{"name": m.name, "display_name": m.display_name} for m in models if "gemini" in m.display_name.lower() or "gemini" in m.name]
-        return {"models": genai_models}
-    except Exception as e:
-        print(f"Error al listar modelos: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al listar modelos: {str(e)}")
+def create_cultivo_api(cultivo: CultivoCreate): return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
+# --- CONFIGURACIÓN DE LA IA ---
 
-# 1. Definición de Herramientas
-tool_get_cultivos = FunctionDeclaration(
-    name="get_cultivos_internal",
-    description="Obtener la lista de todos los cultivos actuales del usuario.",
-    parameters={"type": "OBJECT", "properties": {}}
-)
+tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos del usuario", parameters={"type": "OBJECT", "properties": {}})
+tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
-tool_create_cultivo = FunctionDeclaration(
-    name="create_cultivo_internal",
-    description="Crear un nuevo cultivo en la base de datos.",
-    parameters={
-        "type": "OBJECT",
-        "properties": {
-            "nombre": {"type": "STRING", "description": "El nombre que el usuario le da al cultivo, ej: 'Tomates del balcón'"},
-            "ubicacion": {"type": "STRING", "description": "Dónde está el cultivo, ej: 'Interior' o 'Exterior'"},
-            "plantas": {"type": "ARRAY", "items": {"type": "STRING"}, "description": "Lista de IDs de plantas, ej: ['tomato', 'lettuce']"},
-            "deviceId": {"type": "STRING", "description": "Opcional. El ID del dispositivo de hardware a vincular, ej: 'arduino_uno_balcon_82A4'"}
-        },
-        "required": ["nombre", "ubicacion", "plantas"] # deviceId no es requerido
-    }
-)
+# --- PROMPT HÍBRIDO (AMIGABLE + SEGURO + LIMPIO) ---
+SYSTEM_PROMPT = """
+Eres PlantCare, un asistente de jardinería amigable, entusiasta y muy profesional. Tu objetivo es ayudar a los usuarios a tener éxito con sus plantas.
 
+REGLAS PRINCIPALES:
 
-# 2. Inicialización del Modelo
+1. PERSONALIDAD:
+   - Sé amable y cercano. Usa frases como "¡Claro que sí!", "Me parece genial", "Aquí tienes la información".
+   - Responde siempre en Español Neutro y cuida la ortografía (usa signos ¿? ¡!).
+
+2. SEGURIDAD (ESTRICTO):
+   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan por eso, di amablemente que solo trabajas con cultivos legales y alimenticios.
+
+3. FORMATO VISUAL (MUY IMPORTANTE):
+   - NO uses Markdown (nada de **negritas**, ## títulos, ni *cursivas*). Queremos texto limpio.
+   - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
+   - Ejemplo de cómo listar:
+     - Tomates (Balcón)
+     - Lechugas (Jardín)
+
+4. INTELIGENCIA Y MEMORIA:
+   - Si el usuario dice "el primero" o "el de tomates", revisa la última lista que mencionaste para saber a cuál se refiere.
+   - Si te piden consejos, usa primero la herramienta 'get_cultivos_internal' para ver qué tienen plantado y dar consejos personalizados.
+   - Si te piden crear un cultivo, intenta inferir el nombre y ubicación. Si mencionan un dispositivo (ej: "mi placa arduino"), inclúyelo.
+"""
+
 model = GenerativeModel(
-    "gemini-2.5-flash",
-    system_instruction="Eres un asistente de jardinería amigable llamado 'PlantCare'. Ayudas a los usuarios a gestionar sus cultivos. Siempre respondes en español. Cuando crees un cultivo, infiere el 'deviceId' si el usuario lo menciona (ej: 'mi arduino' o un ID específico), de lo contrario no lo incluyas.",
-    tools=[Tool(function_declarations=[tool_get_cultivos, tool_create_cultivo])]
+    "gemini-2.5-flash", 
+    system_instruction=SYSTEM_PROMPT,
+    tools=[Tool(function_declarations=[tool_get, tool_create])]
 )
 
-# 3. Mapeo de Herramientas
-available_tools = {
-    "get_cultivos_internal": get_cultivos_internal,
-    "create_cultivo_internal": create_cultivo_internal,
-}
+available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 
-
+# Chat Global
+chat = model.start_chat()
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
-    if not GOOGLE_PROJECT_ID or not SERVICE_ACCOUNT_JSON_STRING:
-        raise HTTPException(status_code=500, detail="El servicio de Chatbot no está configurado.")
+    if not GOOGLE_PROJECT_ID: raise HTTPException(status_code=500, detail="Error configuración")
     try:
-        
-        # Esto evita que la IA recuerde conversaciones anteriores 
-        chat = model.start_chat()
-
-        # 1. Envía el mensaje del usuario a Gemini
         response = chat.send_message(chat_message.message)
-        
         function_call = response.candidates[0].content.parts[0].function_call
         
-        # --- ⚠️ ARREGLO 1: Preparar la respuesta para el frontend ---
         frontend_response = {"reply": ""}
-        # --- FIN DEL ARREGLO 1 ---
         
-        if not function_call:
-            frontend_response["reply"] = response.text
-            return frontend_response # 2a. Si no hay herramienta, es una respuesta normal
+        if function_call:
+            fname = function_call.name
+            if fname in available_tools:
+                args = {k: v for k, v in function_call.args.items()}
+                tool_result = available_tools[fname](**args)
+                
+                if fname == 'create_cultivo_internal':
+                    frontend_response["action_performed"] = "create"
+                
+                response = chat.send_message(
+                    Part.from_function_response(name=fname, response={"result": str(tool_result)})
+                )
 
-        # 3. Si la IA pide una herramienta, la ejecutamos
-        function_name = function_call.name
-        if function_name not in available_tools:
-            raise HTTPException(status_code=500, detail=f"Error: Herramienta desconocida '{function_name}'")
-
-        function_to_call = available_tools[function_name]
-        args = {key: value for key, value in function_call.args.items()}
-        tool_response = function_to_call(**args)
-
-        if function_name == 'create_cultivo_internal':
-            frontend_response["action_performed"] = "create"
-
-        # 5. Envía el resultado de la herramienta de vuelta a la IA
-        response = chat.send_message(
-            Part.from_function_response(
-                name=function_name,
-                response={"result": str(tool_response)}
-            ),
-        )
-
-        # 6. La IA genera una respuesta final en lenguaje natural
         frontend_response["reply"] = response.text
-        return frontend_response # Devuelve el objeto completo
-
+        return frontend_response
     except Exception as e:
-        print(f"Error en el endpoint /chat: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al procesar el mensaje: {str(e)}")
+        print(f"Error chat: {e}")
+        return {"reply": "Tuve un pequeño problema de conexión. ¿Me lo repites?"}
