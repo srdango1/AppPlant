@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import StatsCard from "../components/ui/inicioPage/StatsCard";
 import WeatherWidget from "../components/ui/inicioPage/WeatherWidget";
-import CultivationCard from "../components/ui/climaPage/CultivationCard";
+import CultivationCard from "../components/ui/inicioPage/CultivationCard";
 import Sidebar from "../components/layout/InicioSideBar";
 
 import useWeather from '../hooks/useWeather';
