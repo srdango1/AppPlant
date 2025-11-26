@@ -60,14 +60,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- HERRAMIENTAS ---
+# --- HERRAMIENTAS (CORREGIDAS PARA FRONTEND Y IA) ---
+
 def get_cultivos_internal():
     """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
         response = supabase.table('cultivos').select("*").execute()
-        return str(response.data) if response.data else "No hay cultivos registrados."
+        # --- CORRECCIÓN CLAVE: Devuelve la LISTA real para que el frontend no falle ---
+        return response.data if response.data else []
     except Exception as e:
-        return f"Error al obtener cultivos: {str(e)}"
+        print(f"Error DB: {e}")
+        return []
 
 def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], deviceId: Optional[str] = None):
     """Crea un nuevo cultivo."""
@@ -78,24 +81,30 @@ def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], dev
             "humidity": "N/A", "nutrients": "N/A", "waterLevel": "N/A"
         }
         response = supabase.table('cultivos').insert(data_to_insert).execute()
-        return response.data[0] if response.data else "Error al crear el cultivo"
+        # Devuelve el objeto real (diccionario)
+        return response.data[0] if response.data else {"error": "No se pudo crear"}
     except Exception as e:
-        return f"Error al crear cultivo: {str(e)}"
+        return {"error": str(e)}
 
-# --- ENDPOINTS API ---
+# --- ENDPOINTS API (El Frontend usa esto) ---
 @app.get("/")
 def health_check(): return {"status": "ok", "message": "Backend is running!"}
-@app.get("/cultivos")
-def get_cultivos_api(): return get_cultivos_internal()
-@app.post("/cultivos")
-def create_cultivo_api(cultivo: CultivoCreate): return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
-# --- CONFIGURACIÓN DE LA IA ---
+@app.get("/cultivos")
+def get_cultivos_api(): 
+    # Devuelve JSON Array (Arregla el error l.map is not a function)
+    return get_cultivos_internal()
+
+@app.post("/cultivos")
+def create_cultivo_api(cultivo: CultivoCreate): 
+    return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
+
+# --- CONFIGURACIÓN DE LA IA (CON TU PROMPT PERSONALIZADO) ---
 
 tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos del usuario", parameters={"type": "OBJECT", "properties": {}})
 tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
-# --- PROMPT HÍBRIDO (AMIGABLE + SEGURO + LIMPIO) ---
+# --- TU SYSTEM PROMPT COMPLETO ---
 SYSTEM_PROMPT = """
 Eres PlantCare, un asistente de jardinería amigable, entusiasta y muy profesional. Tu objetivo es ayudar a los usuarios a tener éxito con sus plantas.
 
@@ -109,11 +118,12 @@ REGLAS PRINCIPALES:
    - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan por eso, di amablemente que solo trabajas con cultivos legales y alimenticios.
 
 3. FORMATO VISUAL (MUY IMPORTANTE):
-   - NO uses Markdown (nada de **negritas**, ## títulos, ni *cursivas*). Queremos texto limpio.
+   - NO USES FORMATO MARKDOWN (nada de **negritas**, ## títulos, ni *cursivas*). Queremos texto limpio.
    - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
    - Ejemplo de cómo listar:
-     - Tomates (Balcón)
-     - Lechugas (Jardín)
+     - Nombre: Tomates (Ubicación: Balcón)
+     - Plantas: tomate
+     - Estado: Iniciando
 
 4. INTELIGENCIA Y MEMORIA:
    - Si el usuario dice "el primero" o "el de tomates", revisa la última lista que mencionaste para saber a cuál se refiere.
@@ -122,7 +132,7 @@ REGLAS PRINCIPALES:
 """
 
 model = GenerativeModel(
-    "gemini-2.5-flash", 
+    "gemini-2.5-flash-preview-09-2025", 
     system_instruction=SYSTEM_PROMPT,
     tools=[Tool(function_declarations=[tool_get, tool_create])]
 )
@@ -145,11 +155,15 @@ def handle_chat_message(chat_message: ChatMessage):
             fname = function_call.name
             if fname in available_tools:
                 args = {k: v for k, v in function_call.args.items()}
+                
+                # Ejecutamos la herramienta (devuelve objeto/lista)
                 tool_result = available_tools[fname](**args)
                 
                 if fname == 'create_cultivo_internal':
                     frontend_response["action_performed"] = "create"
                 
+                # --- CLAVE: Convertimos a string SOLO para la IA ---
+                # La IA necesita texto, pero tu Frontend necesitaba la lista arriba.
                 response = chat.send_message(
                     Part.from_function_response(name=fname, response={"result": str(tool_result)})
                 )
