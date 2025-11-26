@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // 1. Importamos useRef y useEffect
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -9,6 +9,19 @@ function ChatBot() {
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // 2. Referencia para el final del chat
+    const messagesEndRef = useRef(null);
+
+    // 3. Función para bajar el scroll
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    // 4. Ejecutar scroll cada vez que cambian los mensajes
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isOpen]); // También cuando se abre el chat
 
     const toggleChat = () => setIsOpen(!isOpen);
 
@@ -28,10 +41,7 @@ function ChatBot() {
                 body: JSON.stringify({ message: input }),
             });
 
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Error en la respuesta del bot');
-            }
+            if (!response.ok) throw new Error('Error de red');
 
             const data = await response.json();
             const botMessage = { from: 'bot', text: data.reply };
@@ -42,14 +52,14 @@ function ChatBot() {
             }
 
         } catch (error) {
-            console.error('Error chatbot:', error);
-            const errorMessage = { from: 'bot', text: `Lo siento, error: ${error.message}` };
+            const errorMessage = { from: 'bot', text: "Lo siento, tuve un error de conexión." };
             setMessages(prev => [...prev, errorMessage]);
         } finally {
             setIsLoading(false);
         }
     };
 
+    // Estilos
     const chatBubbleStyle = {
         position: 'fixed', bottom: '2rem', right: '2rem', width: '4rem', height: '4rem',
         borderRadius: '50%', backgroundColor: 'rgb(7, 136, 39)', color: 'white',
@@ -69,6 +79,7 @@ function ChatBot() {
         alignSelf: from === 'bot' ? 'flex-start' : 'flex-end',
         backgroundColor: from === 'bot' ? '#f0f0f0' : 'rgb(7, 136, 39)',
         color: from === 'bot' ? '#333' : 'white',
+        whiteSpace: 'pre-wrap', // Esto ayuda a respetar los saltos de línea de la lista
     });
 
     return (
@@ -83,6 +94,8 @@ function ChatBot() {
                         <div key={index} style={messageStyle(msg.from)}>{msg.text}</div>
                     ))}
                     {isLoading && <div style={messageStyle('bot')}>...</div>}
+                    {/* 5. Elemento invisible al final para el scroll */}
+                    <div ref={messagesEndRef} />
                 </div>
 
                 <form onSubmit={handleSubmit} style={{display: 'flex', padding: '1rem', borderTop: '1px solid #eee'}}>
