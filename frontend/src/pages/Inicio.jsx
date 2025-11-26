@@ -26,6 +26,64 @@ const getVisualImageUrl = (plantas) => {
     };
     return plantImageMap[firstPlant] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3';
 };
+// Función para obtener el nombre del día (ej: "Lunes")
+const getDayName = (dateString) => {
+    const date = new Date(dateString * 1000);
+    return date.toLocaleDateString('es-ES', { weekday: 'long' });
+};
+
+// Función para procesar la lista de 40 items y sacar predicción para 2 días
+const getDailyForecast = (list) => {
+    if (!list) return [];
+    const tomorrow = list[8]; 
+    const dayAfter = list[16];
+
+    if (!tomorrow || !dayAfter) return [];
+
+        return [
+        {
+            day: "Mañana", // Forzamos que el primero diga "Mañana"
+            iconName: getWeatherIcon(tomorrow.weather[0].icon), // Usamos tu traductor de iconos
+            // Simulamos Max/Min usando la temp de ese momento +/- 2 grados 
+            // (Para max/min real habría que recorrer todo el día, pero esto basta por ahora)
+            tempRange: `${Math.round(tomorrow.main.temp)}° / ${Math.round(tomorrow.main.temp - 3)}°`,
+            isHighlighted: true
+        },
+        {
+            day: getDayName(dayAfter.dt).charAt(0).toUpperCase() + getDayName(dayAfter.dt).slice(1), // Ej: "Miércoles"
+            iconName: getWeatherIcon(dayAfter.weather[0].icon),
+            tempRange: `${Math.round(dayAfter.main.temp)}° / ${Math.round(dayAfter.main.temp - 3)}°`,
+            isHighlighted: false
+        }
+    ];
+};
+
+const getWeatherIcon = (code) => {
+    const iconMap = {
+        // Día
+        '01d': 'wb_sunny',           // Despejado
+        '02d': 'partly_cloudy_day',  // Pocas nubes
+        '03d': 'cloud',              // Nubes dispersas
+        '04d': 'cloud',              // Nublado
+        '09d': 'rainy',              // Llovizna
+        '10d': 'water_drop',         // Lluvia
+        '11d': 'thunderstorm',       // Tormenta
+        '13d': 'ac_unit',            // Nieve
+        '50d': 'mist',               // Neblina
+        
+        //iconos de noche
+        '01n': 'bedtime',            // Despejado noche
+        '02n': 'nights_stay',        // Pocas nubes noche
+        '03n': 'cloud',
+        '04n': 'cloud',
+        '09n': 'rainy',
+        '10n': 'water_drop',
+        '11n': 'thunderstorm',
+        '13n': 'ac_unit',
+        '50n': 'mist',
+    };
+    return iconMap[code] || 'partly_cloudy_day';
+};
 
 function Inicio() {
     const [cultivos, setCultivos] = useState([]);
@@ -89,13 +147,14 @@ function Inicio() {
         return () => window.removeEventListener('cultivoActualizado', handleRecargar);
     }, []);
 
-    const processedWeather = weatherData && !weatherError ? {
+    const processedWeather = weatherData && !weatherError && weatherData.list ?{
         city: weatherData.city ? weatherData.city.name : 'N/A',
-        temperature: weatherData.current ? Math.round(weatherData.current.temp) : 'N/A',
-        condition: weatherData.current ? weatherData.current.weather[0].description : 'N/A',
-        iconName: weatherData.current ? weatherData.current.weather[0].icon : 'sync',
-        humidity: weatherData.current ? weatherData.current.main.humidity : 'N/A',
-        wind: weatherData.current ? weatherData.current.wind.speed : 'N/A',
+        temperature: Math.round(weatherData.list[0].main.temp),
+        condition: weatherData.list[0].weather[0].description,
+        iconName: getWeatherIcon(weatherData.list[0].weather[0].icon),
+        humidity: weatherData.list[0].main.humidity,
+        wind: weatherData.list[0].wind.speed,
+        forecast: getDailyForecast(weatherData.list)
     } : null;
     return (
         <div className="relative flex min-h-screen w-full flex-col">
@@ -131,7 +190,7 @@ function Inicio() {
                         <WeatherWidget 
                             city={processedWeather.city}
                             temperature={processedWeather.temperature}
-                            description={processedWeather.condition}
+                            condition={processedWeather.condition}
                             humidity={processedWeather.humidity}
                             wind={processedWeather.wind}
                             iconName={processedWeather.iconName}

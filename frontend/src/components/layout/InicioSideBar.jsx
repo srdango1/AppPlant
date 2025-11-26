@@ -19,7 +19,7 @@ const MOCK_ALERTS = [
 // solo es el componente grande del sidebar
 function Sidebar({currentWeatherData}) {
 
-  const temp = currentWeatherData?.temp || 'N/A';
+  const temp = currentWeatherData?.temperature || 'N/A';
   const condition = currentWeatherData?.condition || 'Cargando...';
   const icon = currentWeatherData?.iconName || 'partly_cloudy_day'; 
   const forecastData = currentWeatherData?.forecast || MOCK_FORECAST; 
@@ -29,12 +29,14 @@ function Sidebar({currentWeatherData}) {
     <aside className="hidden lg:block w-1/3 xl:w-1/4 p-6 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
       <div className="flex flex-col gap-8">
         
-        {/* Sección de Clima (Repetida) sorpresa no es dinamico */}
+        {/* Sección de Clima (Repetida) ya es dinamico */}
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <span className={`material-symbols-outli8ned text-primary text-4xl`}>{icon}</span>
+            <span className="material-symbols-outlined text-accent text-3xl text-blue-500">
+                    {icon} 
+                </span>
             <div className="flex flex-col">
-              <h1 className="text-lg font-medium">{temp}</h1>
+              <h1 className="text-lg font-medium">{temp}°C</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">{condition}</p>
             </div>
           </div>

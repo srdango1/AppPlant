@@ -16,7 +16,8 @@ function DailyForecast({ day, iconName, tempRange, isHighlighted = false }) {
   return (
     <div className={`${baseClasses} ${highlightClasses}`}>
       <p className="text-sm font-medium">{day}</p>
-      <span className="material-symbols-outlined text-accent">{iconName}</span>
+        <span className="material-symbols-outlined text-accent text-3xl text-blue-500">
+        {iconName} </span>      
       <p className="text-sm">{tempRange}</p>
     </div>
   );
