@@ -1,38 +1,25 @@
 import os
-import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-import vertexai
-from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
-import vertexai.generative_models as generative_models
-from google.cloud import aiplatform
-
-# --- Configuración de Credenciales ---
-SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
-if SERVICE_ACCOUNT_JSON_STRING:
-    try:
-        service_account_info = json.loads(SERVICE_ACCOUNT_JSON_STRING)
-        temp_file_path = "/tmp/service_account.json"
-        with open(temp_file_path, "w") as f:
-            json.dump(service_account_info, f)
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
-    except Exception as e:
-        print(f"ERROR JSON: {e}")
+# --- Importaciones de Google AI (Versión Simple) ---
+import google.generativeai as genai
+from google.generativeai.types import FunctionDeclaration, Tool
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# --- Configuración de Google Vertex AI ---
-GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
-if GOOGLE_PROJECT_ID:
-    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
-    aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
+# --- Configuración de Google AI ---
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+if not gemini_api_key:
+    print("ADVERTENCIA: GEMINI_API_KEY no está configurada.")
+else:
+    genai.configure(api_key=gemini_api_key)
 
 # --- Modelos Pydantic ---
 class CultivoCreate(BaseModel):
@@ -61,19 +48,15 @@ app.add_middleware(
 )
 
 # --- HERRAMIENTAS ---
-
 def get_cultivos_internal():
-    """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
         response = supabase.table('cultivos').select("*").execute()
-        # Devuelve la lista real para el frontend
         return response.data if response.data else []
     except Exception as e:
         print(f"Error DB: {e}")
         return []
 
 def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], deviceId: Optional[str] = None):
-    """Crea un nuevo cultivo."""
     try:
         data_to_insert = {
             "name": nombre, "location": ubicacion, "plantas": plantas, "deviceId": deviceId,
@@ -90,17 +73,19 @@ def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], dev
 def health_check(): return {"status": "ok", "message": "Backend is running!"}
 
 @app.get("/cultivos")
-def get_cultivos_api(): 
-    return get_cultivos_internal()
+def get_cultivos_api(): return get_cultivos_internal()
 
 @app.post("/cultivos")
 def create_cultivo_api(cultivo: CultivoCreate): 
     return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
-# --- CONFIGURACIÓN DE LA IA ---
+# --- CONFIGURACIÓN DEL CHATBOT ---
 
-tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos del usuario", parameters={"type": "OBJECT", "properties": {}})
-tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
+# Definición de herramientas para la librería google-generativeai
+tools_list = [
+    get_cultivos_internal,
+    create_cultivo_internal
+]
 
 # --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
@@ -127,43 +112,43 @@ REGLAS PRINCIPALES:
    - Si piden crear un cultivo, intenta inferir nombre y ubicación.
 """
 
-# Usamos el modelo ESTABLE que ya confirmamos
-model = GenerativeModel(
-    "gemini-1.5-flash-001", 
+# Inicializamos el modelo con las herramientas
+# Usamos 'gemini-1.5-flash', que es el modelo estándar actual para API Keys
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-flash',
     system_instruction=SYSTEM_PROMPT,
-    tools=[Tool(function_declarations=[tool_get, tool_create])]
+    tools=tools_list
 )
 
-available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
-
-# Chat Global
-chat = model.start_chat()
+# Chat con historial automático
+chat = model.start_chat(enable_automatic_function_calling=True)
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
-    if not GOOGLE_PROJECT_ID: raise HTTPException(status_code=500, detail="Error configuración")
+    if not gemini_api_key: raise HTTPException(status_code=500, detail="Falta API Key")
+    
     try:
+        # En esta librería, function calling es automático si se configura al inicio
         response = chat.send_message(chat_message.message)
-        function_call = response.candidates[0].content.parts[0].function_call
         
-        frontend_response = {"reply": ""}
-        
-        if function_call:
-            fname = function_call.name
-            if fname in available_tools:
-                args = {k: v for k, v in function_call.args.items()}
-                tool_result = available_tools[fname](**args)
-                
-                if fname == 'create_cultivo_internal':
-                    frontend_response["action_performed"] = "create"
-                
-                response = chat.send_message(
-                    Part.from_function_response(name=fname, response={"result": str(tool_result)})
-                )
+        frontend_response = {
+            "reply": response.text,
+            "action_performed": None
+        }
 
-        frontend_response["reply"] = response.text
+        # Verificamos si se usó una función inspeccionando el historial reciente
+        # (Esto es un truco porque la librería abstrae la llamada)
+        if len(chat.history) >= 2:
+            last_parts = chat.history[-2].parts
+            for part in last_parts:
+                if part.function_call and part.function_call.name == 'create_cultivo_internal':
+                    frontend_response["action_performed"] = "create"
+
         return frontend_response
+
     except Exception as e:
         print(f"Error chat: {e}")
-        # Aquí eliminamos la lógica compleja de reinicio para evitar el SyntaxError
-        return {"reply": "Tuve un pequeño problema de conexión. ¿Me lo repites?"}
+        # Reiniciar chat en caso de error grave
+        global chat
+        chat = model.start_chat(enable_automatic_function_calling=True)
+        return {"reply": "Tuve un pequeño problema. ¿Me lo repites?"}
