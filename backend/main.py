@@ -5,25 +5,24 @@ from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Google AI (Versión Simple) ---
+# --- Importamos la librería simple de Google ---
 import google.generativeai as genai
 from google.generativeai.types import FunctionDeclaration, Tool
 
-# --- LIMPIEZA DE ENTORNO (Para evitar el error 401) ---
-# Esto elimina cualquier rastro de la configuración anterior de Vertex AI
+# --- LIMPIEZA DE SEGURIDAD ---
+# Borramos variables antiguas de memoria por si acaso siguen en Render
 os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
 os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS_JSON", None)
-os.environ.pop("GOOGLE_PROJECT_ID", None)
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# --- Configuración de Google AI ---
+# --- Configuración de la IA ---
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 if not gemini_api_key:
-    print("ADVERTENCIA CRÍTICA: GEMINI_API_KEY no está configurada en Render.")
+    print("❌ ERROR: Falta la GEMINI_API_KEY en Render.")
 else:
     genai.configure(api_key=gemini_api_key)
 
@@ -87,9 +86,9 @@ def get_cultivos_api(): return get_cultivos_internal()
 def create_cultivo_api(cultivo: CultivoCreate): 
     return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
-# --- CHATBOT ---
+# --- CHATBOT IA ---
 
-# Lista de herramientas
+# Definición de herramientas para la librería simple
 tools_list = [get_cultivos_internal, create_cultivo_internal]
 
 # --- SYSTEM PROMPT ---
@@ -117,38 +116,35 @@ REGLAS PRINCIPALES:
    - Si piden crear un cultivo, intenta inferir nombre y ubicación.
 """
 
-# Inicialización del modelo (Usamos 1.5 Flash, el estándar para API Keys)
+# Inicialización del modelo (Usamos 1.5 Flash que funciona con API Key)
 try:
     model = genai.GenerativeModel(
         model_name='gemini-1.5-flash',
         system_instruction=SYSTEM_PROMPT,
         tools=tools_list
     )
-    # Chat con historial automático habilitado
+    # Iniciamos el chat globalmente para mantener memoria
     chat = model.start_chat(enable_automatic_function_calling=True)
-    print("✅ Chatbot iniciado correctamente con API Key.")
+    print("✅ Chatbot iniciado con API Key.")
 except Exception as e:
     print(f"❌ Error al iniciar modelo: {e}")
     chat = None
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
-    global chat # Usamos la variable global
+    global chat 
     
     if not gemini_api_key or chat is None:
-        # Intentamos reconectar si falló al inicio
-        if gemini_api_key:
-             try:
-                genai.configure(api_key=gemini_api_key)
-                model = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=SYSTEM_PROMPT, tools=tools_list)
-                chat = model.start_chat(enable_automatic_function_calling=True)
-             except:
-                raise HTTPException(status_code=500, detail="Chat no configurado.")
-        else:
-             raise HTTPException(status_code=500, detail="Falta API Key")
+        # Intento de reconexión si falló al inicio
+        try:
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=SYSTEM_PROMPT, tools=tools_list)
+            chat = model.start_chat(enable_automatic_function_calling=True)
+        except:
+            raise HTTPException(status_code=500, detail="Error de configuración IA.")
 
     try:
-        # En esta librería, la llamada de herramientas es automática
+        # Enviar mensaje
         response = chat.send_message(chat_message.message)
         
         frontend_response = {
@@ -156,18 +152,24 @@ def handle_chat_message(chat_message: ChatMessage):
             "action_performed": None
         }
 
-        # Detectamos si se creó un cultivo revisando el historial reciente
-        if len(chat.history) >= 2:
-            last_parts = chat.history[-2].parts
-            for part in last_parts:
-                if part.function_call and part.function_call.name == 'create_cultivo_internal':
-                    frontend_response["action_performed"] = "create"
+        # Detectar si se creó un cultivo revisando el historial
+        # (La librería ejecuta la función automáticamente, nosotros solo verificamos si ocurrió)
+        try:
+            if len(chat.history) >= 2:
+                # Revisamos los últimos mensajes buscando llamadas a función
+                for message in chat.history[-2:]:
+                    if hasattr(message, 'parts'):
+                        for part in message.parts:
+                            if part.function_call and part.function_call.name == 'create_cultivo_internal':
+                                frontend_response["action_performed"] = "create"
+        except:
+            pass # Si falla la verificación del historial, no rompemos el chat
 
         return frontend_response
 
     except Exception as e:
         print(f"Error chat: {e}")
-        # Reiniciar chat en caso de error
+        # Reiniciar chat si hay error grave
         try:
             chat = model.start_chat(enable_automatic_function_calling=True)
         except:
