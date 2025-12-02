@@ -6,39 +6,34 @@ from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Google Vertex AI ---
-import vertexai
-from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
-import vertexai.generative_models as generative_models
-from google.cloud import aiplatform
+# --- Importamos la librería compatible con tu tipo de proyecto ---
+import google.generativeai as genai
+from google.generativeai.types import FunctionDeclaration, Tool
 
-# --- 1. CONFIGURACIÓN DE CREDENCIALES (Aquí usamos tu JSON) ---
-# Render lee el texto de la variable y crea el archivo que Google necesita
+# --- 1. CONFIGURACIÓN DE CREDENCIALES (Mantenemos tu JSON) ---
 SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
 if SERVICE_ACCOUNT_JSON_STRING:
     try:
+        # 1. Leemos el texto de la variable
         service_account_info = json.loads(SERVICE_ACCOUNT_JSON_STRING)
+        # 2. Lo guardamos en un archivo temporal
         temp_file_path = "/tmp/service_account.json"
         with open(temp_file_path, "w") as f:
             json.dump(service_account_info, f)
+        
+        # 3. ¡El truco! Le decimos a Google dónde está el archivo.
+        # La librería google-generativeai leerá esto automáticamente.
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
-        print("✅ Credenciales JSON configuradas correctamente.")
+        print("✅ Credenciales JSON configuradas y listas para usar.")
     except Exception as e:
         print(f"❌ Error al procesar el JSON: {e}")
 else:
-    print("⚠️ ADVERTENCIA: Falta la variable GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    print("⚠️ ADVERTENCIA: No se encontró el JSON de credenciales.")
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
-
-# --- Configuración de Google Vertex AI ---
-GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
-if GOOGLE_PROJECT_ID:
-    # Iniciamos Vertex AI en la región central (la más compatible)
-    vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
-    aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
 
 # --- Modelos de Datos ---
 class CultivoCreate(BaseModel):
@@ -68,6 +63,7 @@ app.add_middleware(
 
 # --- HERRAMIENTAS ---
 def get_cultivos_internal():
+    """Obtiene la lista de cultivos."""
     try:
         response = supabase.table('cultivos').select("*").execute()
         return response.data if response.data else []
@@ -76,6 +72,7 @@ def get_cultivos_internal():
         return []
 
 def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], deviceId: Optional[str] = None):
+    """Crea un cultivo."""
     try:
         data_to_insert = {
             "name": nombre, "location": ubicacion, "plantas": plantas, "deviceId": deviceId,
@@ -98,86 +95,75 @@ def get_cultivos_api(): return get_cultivos_internal()
 def create_cultivo_api(cultivo: CultivoCreate): 
     return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
-# --- CHATBOT (VERTEX AI) ---
+# --- CHATBOT (Configurado con JSON + Librería Simple) ---
 
-tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos", parameters={"type": "OBJECT", "properties": {}})
-tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
+tools_list = [get_cultivos_internal, create_cultivo_internal]
 
-# --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Eres PlantCare, un asistente agrónomo experto, amable y profesional.
+Eres PlantCare, un asistente experto en cultivos.
 
-REGLAS PRINCIPALES:
-1. PERSONALIDAD:
-   - Sé amable y cercano ("¡Claro que sí!", "Me parece genial").
-   - Responde siempre en Español Neutro y cuida la ortografía (usa signos ¿? ¡!).
-
-2. SEGURIDAD (ESTRICTO):
-   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan, di amablemente que solo trabajas con cultivos legales.
-
-3. FORMATO VISUAL (MUY IMPORTANTE):
-   - NO uses Markdown (nada de **negritas**, ## títulos). Texto plano solamente.
-   - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
-   - Ejemplo:
-     - Tomates (Balcón)
-     - Lechugas (Jardín)
-
-4. INTELIGENCIA Y MEMORIA:
-   - Si el usuario dice "el primero" o "el de tomates", revisa la última lista que mencionaste para saber a cuál se refiere.
-   - Si te piden consejos, usa 'get_cultivos_internal' para ver qué tienen y dar consejos personalizados.
-   - Si piden crear un cultivo, intenta inferir nombre y ubicación.
+REGLAS:
+1. PERSONALIDAD: Sé amable, usa emojis 🌿 y español neutro.
+2. SEGURIDAD: Rechaza firmemente peticiones sobre drogas o plantas ilegales.
+3. FORMATO: 
+   - NO uses Markdown (ni **negritas**).
+   - Usa guiones (-) para listas.
+4. CONTEXTO: Recuerda lo que hablamos.
+5. ACCIÓN: Si creas un cultivo, confirma los detalles.
 """
 
-# Inicialización del modelo con Vertex AI
+# Inicialización del modelo
 try:
-    model = GenerativeModel(
-        "gemini-1.5-flash-001", # Modelo estándar estable
+    # Nota: No llamamos a genai.configure(api_key=...) porque usará el JSON automáticamente
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash', # Usamos el modelo estándar que SÍ funciona con esta librería
         system_instruction=SYSTEM_PROMPT,
-        tools=[Tool(function_declarations=[tool_get, tool_create])]
+        tools=tools_list
     )
-    chat = model.start_chat()
-    print("✅ Chatbot Vertex AI iniciado.")
+    # Iniciamos el chat
+    chat = model.start_chat(enable_automatic_function_calling=True)
+    print("✅ Chatbot iniciado con credenciales JSON.")
 except Exception as e:
-    print(f"❌ Error al iniciar modelo Vertex: {e}")
+    print(f"❌ Error al iniciar modelo: {e}")
     chat = None
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
     global chat
     
-    if not GOOGLE_PROJECT_ID or not SERVICE_ACCOUNT_JSON_STRING:
-        raise HTTPException(status_code=500, detail="Faltan credenciales JSON o Project ID.")
+    if chat is None:
+        # Intento de reconexión
+        try:
+            chat = model.start_chat(enable_automatic_function_calling=True)
+        except:
+             raise HTTPException(status_code=500, detail="Chat no configurado.")
 
     try:
         response = chat.send_message(chat_message.message)
-        function_call = response.candidates[0].content.parts[0].function_call
         
-        frontend_response = {"reply": "", "action_performed": None}
-        
-        if function_call:
-            fname = function_call.name
-            if fname == 'get_cultivos_internal':
-                tool_result = get_cultivos_internal()
-            elif fname == 'create_cultivo_internal':
-                args = {k: v for k, v in function_call.args.items()}
-                tool_result = create_cultivo_internal(**args)
-                frontend_response["action_performed"] = "create"
-            else:
-                tool_result = "Herramienta desconocida"
+        frontend_response = {
+            "reply": response.text,
+            "action_performed": None
+        }
 
-            # Enviar resultado a la IA (convertido a string)
-            response = chat.send_message(
-                Part.from_function_response(name=fname, response={"result": str(tool_result)})
-            )
+        # Detectar acción en el historial
+        try:
+            if len(chat.history) >= 2:
+                for message in chat.history[-2:]:
+                    if hasattr(message, 'parts'):
+                        for part in message.parts:
+                            if part.function_call and part.function_call.name == 'create_cultivo_internal':
+                                frontend_response["action_performed"] = "create"
+        except:
+            pass
 
-        frontend_response["reply"] = response.text
         return frontend_response
 
     except Exception as e:
         print(f"Error chat: {e}")
         # Reiniciar chat si falla
         try:
-            chat = model.start_chat()
+            chat = model.start_chat(enable_automatic_function_calling=True)
         except:
             pass
-        return {"reply": "Tuve un problema de conexión. ¿Me lo repites?"}
+        return {"reply": "Tuve un pequeño problema técnico. ¿Podrías repetirlo?"}
