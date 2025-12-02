@@ -1,45 +1,31 @@
 import os
-import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Vertex AI ---
-import vertexai
-from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
-from google.cloud import aiplatform
+# --- Importamos la librería simple de Google ---
+import google.generativeai as genai
+from google.generativeai.types import FunctionDeclaration, Tool
 
-# --- 1. CONFIGURACIÓN DE CREDENCIALES (JSON) ---
-SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+# --- LIMPIEZA DE SEGURIDAD ---
+os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
+os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS_JSON", None)
 
-if SERVICE_ACCOUNT_JSON_STRING:
-    try:
-        # Crear archivo temporal
-        service_account_info = json.loads(SERVICE_ACCOUNT_JSON_STRING)
-        temp_file_path = "/tmp/service_account.json"
-        with open(temp_file_path, "w") as f:
-            json.dump(service_account_info, f)
-        
-        # Configurar entorno
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
-        GOOGLE_PROJECT_ID = service_account_info.get("project_id")
-        
-        # Inicializar Vertex AI
-        vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
-        aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
-        print(f"✅ Vertex AI conectado. Proyecto: {GOOGLE_PROJECT_ID}")
-        
-    except Exception as e:
-        print(f"❌ Error crítico leyendo el JSON: {e}")
-else:
-    print("⚠️ ADVERTENCIA: Falta GOOGLE_APPLICATION_CREDENTIALS_JSON")
-
-# --- Configuración Supabase ---
+# --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
+
+# --- Configuración de Google AI ---
+gemini_api_key = os.environ.get("GEMINI_API_KEY")
+
+if not gemini_api_key:
+    print("❌ ERROR CRÍTICO: No se encontró GEMINI_API_KEY.")
+else:
+    genai.configure(api_key=gemini_api_key)
+    print("✅ API Key configurada exitosamente.")
 
 # --- Modelos de Datos ---
 class CultivoCreate(BaseModel):
@@ -69,100 +55,128 @@ app.add_middleware(
 
 # --- HERRAMIENTAS ---
 def get_cultivos_internal():
+    """Obtiene la lista de cultivos."""
     try:
         response = supabase.table('cultivos').select("*").execute()
         return response.data if response.data else []
-    except:
+    except Exception as e:
+        print(f"Error DB: {e}")
         return []
 
 def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], deviceId: Optional[str] = None):
+    """Crea un cultivo en la base de datos."""
     try:
-        data = {
+        data_to_insert = {
             "name": nombre, "location": ubicacion, "plantas": plantas, "deviceId": deviceId,
             "status": "Iniciando", "statusColor": "text-gray-500", "temp": "N/A",
             "humidity": "N/A", "nutrients": "N/A", "waterLevel": "N/A"
         }
-        res = supabase.table('cultivos').insert(data).execute()
-        return res.data[0] if res.data else {"error": "Error al crear"}
+        response = supabase.table('cultivos').insert(data_to_insert).execute()
+        return response.data[0] if response.data else {"error": "No se pudo crear"}
     except Exception as e:
         return {"error": str(e)}
 
 # --- ENDPOINTS API ---
 @app.get("/")
-def health(): return {"status": "ok"}
+def health_check(): return {"status": "ok", "message": "Backend is running!"}
 
 @app.get("/cultivos")
-def get_cultivos(): return get_cultivos_internal()
+def get_cultivos_api(): return get_cultivos_internal()
 
 @app.post("/cultivos")
-def create_cultivo(c: CultivoCreate): 
-    return create_cultivo_internal(c.nombre, c.ubicacion, c.plantas, c.deviceId)
+def create_cultivo_api(cultivo: CultivoCreate): 
+    return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
-# --- CHATBOT (VERTEX AI) ---
+# --- CHATBOT IA ---
 
-tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos", parameters={"type": "OBJECT", "properties": {}})
-tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
+tools_list = [get_cultivos_internal, create_cultivo_internal]
 
+# --- SYSTEM PROMPT ACTUALIZADO (CONSEJOS AGRONÓMICOS) ---
 SYSTEM_PROMPT = """
-Eres PlantCare.
-1. SEGURIDAD: NO drogas.
-2. FORMATO: Texto plano, listas con guiones (-). NO Markdown.
-3. CONTEXTO: Recuerda "el primero", "ese cultivo".
+Eres PlantCare, un asistente agrónomo experto, amable y profesional.
+
+REGLAS PRINCIPALES:
+
+1. PERSONALIDAD:
+   - Sé amable y cercano. Usa frases como "¡Claro que sí!" o "Entendido".
+   - Responde siempre en Español Neutro y cuida la ortografía (signos ¿? ¡!).
+
+2. SEGURIDAD (ESTRICTO):
+   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Rechaza estas peticiones amablemente.
+
+3. FORMATO VISUAL (IMPORTANTE):
+   - NO uses Markdown (nada de **negritas**, ni # títulos). Usa solo texto plano.
+   - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
+   - Ejemplo visual:
+     - Tomates (Balcón)
+     - Lechugas (Jardín)
+
+4. INTELIGENCIA Y CONTEXTO:
+   - Si el usuario pregunta "¿Cómo están mis plantas?" o "¿Qué cuidados necesita mi cultivo?", DEBES llamar a la herramienta 'get_cultivos_internal' para ver qué tiene plantado.
+   - Si el usuario dice "el primero", refiérete al primer cultivo de la lista que acabas de ver.
+
+5. CONSEJOS TÉCNICOS (AGUA/LUZ):
+   - Cuando tengas la lista de cultivos, usa tu conocimiento de experto para dar consejos específicos para ESAS plantas.
+   - Ejemplo: Si ves que tiene 'Tomates', explícale cuánta luz directa necesitan y la frecuencia de riego ideal para tomates. No des consejos genéricos, dales consejos para SU planta.
+
+6. CREACIÓN:
+   - Si piden crear un cultivo, confirma los detalles antes de llamar a la herramienta.
 """
 
 # Inicialización del modelo
+model = None
 chat = None
+
 try:
-    # --- CAMBIO CLAVE: Usamos el modelo que aparece en tu lista de estables ---
-    model = GenerativeModel(
-        "gemini-2.5-flash", 
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash', 
         system_instruction=SYSTEM_PROMPT,
-        tools=[Tool(function_declarations=[tool_get, tool_create])]
+        tools=tools_list
     )
-    chat = model.start_chat()
-    print("✅ Chatbot Vertex iniciado con gemini-2.5-flash.")
+    chat = model.start_chat(enable_automatic_function_calling=True)
+    print("✅ Chatbot iniciado con instrucciones mejoradas.")
 except Exception as e:
-    print(f"❌ Error al iniciar modelo Vertex: {e}")
+    print(f"❌ Error al iniciar modelo: {e}")
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
-    global chat
+    global chat 
+    
+    if not gemini_api_key:
+        raise HTTPException(status_code=500, detail="Falta API Key.")
     
     if chat is None:
         try:
-             chat = model.start_chat()
-        except:
-             raise HTTPException(status_code=500, detail="Chat no disponible")
+            model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT, tools=tools_list)
+            chat = model.start_chat(enable_automatic_function_calling=True)
+        except Exception as e:
+             raise HTTPException(status_code=500, detail="El chat no está disponible.")
 
     try:
         response = chat.send_message(chat_message.message)
-        frontend_response = {"reply": "", "action_performed": None}
         
-        # Manejo manual de function calling en Vertex
-        function_call = response.candidates[0].content.parts[0].function_call
-        
-        if function_call:
-            fname = function_call.name
-            if fname == 'get_cultivos_internal':
-                res = str(get_cultivos_internal())
-                frontend_response["action_performed"] = "read"
-            elif fname == 'create_cultivo_internal':
-                args = {k: v for k, v in function_call.args.items()}
-                res = str(create_cultivo_internal(**args))
-                frontend_response["action_performed"] = "create"
-            else:
-                res = "Función desconocida"
+        frontend_response = {
+            "reply": response.text,
+            "action_performed": None
+        }
 
-            # Devolver resultado a la IA
-            response = chat.send_message(
-                Part.from_function_response(name=fname, response={"result": res})
-            )
-            
-        frontend_response["reply"] = response.text
+        # Detección de creación de cultivo para recargar página
+        try:
+            if len(chat.history) >= 2:
+                for message in chat.history[-2:]:
+                    if hasattr(message, 'parts'):
+                        for part in message.parts:
+                            if part.function_call and part.function_call.name == 'create_cultivo_internal':
+                                frontend_response["action_performed"] = "create"
+        except:
+            pass
+
         return frontend_response
 
     except Exception as e:
         print(f"Error chat: {e}")
-        try: chat = model.start_chat()
-        except: pass
-        return {"reply": "Tuve un problema técnico. ¿Me lo repites?"}
+        try:
+            chat = model.start_chat(enable_automatic_function_calling=True)
+        except:
+            pass
+        return {"reply": "Tuve un pequeño problema técnico. ¿Podrías repetirlo?"}
