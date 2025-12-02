@@ -31,6 +31,7 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
+    # Usamos us-central1, que es la región más común para modelos estables
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
     aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
 
@@ -66,7 +67,6 @@ def get_cultivos_internal():
     """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
         response = supabase.table('cultivos').select("*").execute()
-        # Devuelve la lista real para el frontend, pero la convertiremos a texto para la IA luego
         return response.data if response.data else []
     except Exception as e:
         print(f"Error DB: {e}")
@@ -91,7 +91,7 @@ def health_check(): return {"status": "ok", "message": "Backend is running!"}
 
 @app.get("/cultivos")
 def get_cultivos_api(): 
-    return get_cultivos_internal() # Devuelve JSON Array para el frontend
+    return get_cultivos_internal()
 
 @app.post("/cultivos")
 def create_cultivo_api(cultivo: CultivoCreate): 
@@ -127,15 +127,15 @@ REGLAS PRINCIPALES:
    - Si piden crear un cultivo, intenta inferir nombre y ubicación.
 """
 
+# --- CAMBIO CLAVE AQUÍ: Usamos el modelo ESTABLE ---
 model = GenerativeModel(
-    "gemini-2.5-flash-preview-09-2025", 
+    "gemini-1.5-flash-001", 
     system_instruction=SYSTEM_PROMPT,
     tools=[Tool(function_declarations=[tool_get, tool_create])]
 )
 
 available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 
-# Chat Global
 chat = model.start_chat()
 
 @app.post("/chat")
@@ -156,7 +156,6 @@ def handle_chat_message(chat_message: ChatMessage):
                 if fname == 'create_cultivo_internal':
                     frontend_response["action_performed"] = "create"
                 
-                # Convertimos a string SOLO para la IA
                 response = chat.send_message(
                     Part.from_function_response(name=fname, response={"result": str(tool_result)})
                 )
