@@ -6,7 +6,7 @@ from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Vertex AI (Para JSON) ---
+# --- Importaciones de Vertex AI ---
 import vertexai
 from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
 from google.cloud import aiplatform
@@ -26,8 +26,9 @@ if SERVICE_ACCOUNT_JSON_STRING:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
         GOOGLE_PROJECT_ID = service_account_info.get("project_id")
         
-        # Inicializar Vertex AI (us-central1 es la región más segura)
+        # Inicializar Vertex AI
         vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
+        aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
         print(f"✅ Vertex AI conectado. Proyecto: {GOOGLE_PROJECT_ID}")
         
     except Exception as e:
@@ -98,6 +99,7 @@ def create_cultivo(c: CultivoCreate):
     return create_cultivo_internal(c.nombre, c.ubicacion, c.plantas, c.deviceId)
 
 # --- CHATBOT (VERTEX AI) ---
+
 tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos", parameters={"type": "OBJECT", "properties": {}})
 tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
@@ -105,20 +107,20 @@ SYSTEM_PROMPT = """
 Eres PlantCare.
 1. SEGURIDAD: NO drogas.
 2. FORMATO: Texto plano, listas con guiones (-). NO Markdown.
-3. CONTEXTO: Recuerda "el primero".
+3. CONTEXTO: Recuerda "el primero", "ese cultivo".
 """
 
-# Inicialización
+# Inicialización del modelo
 chat = None
 try:
-    # Modelo estable para Vertex AI
+    # --- CAMBIO CLAVE: Usamos el modelo que aparece en tu lista de estables ---
     model = GenerativeModel(
-        "gemini-1.5-flash-001", 
+        "gemini-2.5-flash", 
         system_instruction=SYSTEM_PROMPT,
         tools=[Tool(function_declarations=[tool_get, tool_create])]
     )
     chat = model.start_chat()
-    print("✅ Chatbot Vertex iniciado.")
+    print("✅ Chatbot Vertex iniciado con gemini-2.5-flash.")
 except Exception as e:
     print(f"❌ Error al iniciar modelo Vertex: {e}")
 
@@ -137,24 +139,24 @@ def handle_chat_message(chat_message: ChatMessage):
         frontend_response = {"reply": "", "action_performed": None}
         
         # Manejo manual de function calling en Vertex
-        if response.candidates and response.candidates[0].content.parts:
-             for part in response.candidates[0].content.parts:
-                if part.function_call:
-                    fname = part.function_call.name
-                    if fname == 'get_cultivos_internal':
-                        res = str(get_cultivos_internal())
-                        frontend_response["action_performed"] = "read"
-                    elif fname == 'create_cultivo_internal':
-                        args = {k: v for k, v in part.function_call.args.items()}
-                        res = str(create_cultivo_internal(**args))
-                        frontend_response["action_performed"] = "create"
-                    else:
-                        res = "Función desconocida"
+        function_call = response.candidates[0].content.parts[0].function_call
+        
+        if function_call:
+            fname = function_call.name
+            if fname == 'get_cultivos_internal':
+                res = str(get_cultivos_internal())
+                frontend_response["action_performed"] = "read"
+            elif fname == 'create_cultivo_internal':
+                args = {k: v for k, v in function_call.args.items()}
+                res = str(create_cultivo_internal(**args))
+                frontend_response["action_performed"] = "create"
+            else:
+                res = "Función desconocida"
 
-                    # Respuesta a la IA
-                    response = chat.send_message(
-                        Part.from_function_response(name=fname, response={"result": res})
-                    )
+            # Devolver resultado a la IA
+            response = chat.send_message(
+                Part.from_function_response(name=fname, response={"result": res})
+            )
             
         frontend_response["reply"] = response.text
         return frontend_response
