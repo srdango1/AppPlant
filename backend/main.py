@@ -60,13 +60,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- HERRAMIENTAS (CORREGIDAS PARA FRONTEND Y IA) ---
+# --- HERRAMIENTAS ---
 
 def get_cultivos_internal():
     """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
         response = supabase.table('cultivos').select("*").execute()
-        # --- CORRECCIÓN CLAVE: Devuelve la LISTA real para que el frontend no falle ---
+        # Devuelve la lista real para el frontend, pero la convertiremos a texto para la IA luego
         return response.data if response.data else []
     except Exception as e:
         print(f"Error DB: {e}")
@@ -81,54 +81,50 @@ def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], dev
             "humidity": "N/A", "nutrients": "N/A", "waterLevel": "N/A"
         }
         response = supabase.table('cultivos').insert(data_to_insert).execute()
-        # Devuelve el objeto real (diccionario)
         return response.data[0] if response.data else {"error": "No se pudo crear"}
     except Exception as e:
         return {"error": str(e)}
 
-# --- ENDPOINTS API (El Frontend usa esto) ---
+# --- ENDPOINTS API ---
 @app.get("/")
 def health_check(): return {"status": "ok", "message": "Backend is running!"}
 
 @app.get("/cultivos")
 def get_cultivos_api(): 
-    # Devuelve JSON Array (Arregla el error l.map is not a function)
-    return get_cultivos_internal()
+    return get_cultivos_internal() # Devuelve JSON Array para el frontend
 
 @app.post("/cultivos")
 def create_cultivo_api(cultivo: CultivoCreate): 
     return create_cultivo_internal(cultivo.nombre, cultivo.ubicacion, cultivo.plantas, cultivo.deviceId)
 
-# --- CONFIGURACIÓN DE LA IA (CON TU PROMPT PERSONALIZADO) ---
+# --- CONFIGURACIÓN DE LA IA ---
 
 tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos del usuario", parameters={"type": "OBJECT", "properties": {}})
 tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
-# --- TU SYSTEM PROMPT COMPLETO ---
+# --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Eres PlantCare, un asistente de jardinería amigable, entusiasta y muy profesional. Tu objetivo es ayudar a los usuarios a tener éxito con sus plantas.
+Eres PlantCare, un asistente agrónomo experto, amable y profesional.
 
 REGLAS PRINCIPALES:
-
 1. PERSONALIDAD:
-   - Sé amable y cercano. Usa frases como "¡Claro que sí!", "Me parece genial", "Aquí tienes la información".
+   - Sé amable y cercano ("¡Claro que sí!", "Me parece genial").
    - Responde siempre en Español Neutro y cuida la ortografía (usa signos ¿? ¡!).
 
 2. SEGURIDAD (ESTRICTO):
-   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan por eso, di amablemente que solo trabajas con cultivos legales y alimenticios.
+   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan, di amablemente que solo trabajas con cultivos legales.
 
 3. FORMATO VISUAL (MUY IMPORTANTE):
-   - NO USES FORMATO MARKDOWN (nada de **negritas**, ## títulos, ni *cursivas*). Queremos texto limpio.
+   - NO uses Markdown (nada de **negritas**, ## títulos). Texto plano solamente.
    - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
-   - Ejemplo de cómo listar:
-     - Nombre: Tomates (Ubicación: Balcón)
-     - Plantas: tomate
-     - Estado: Iniciando
+   - Ejemplo:
+     - Tomates (Balcón)
+     - Lechugas (Jardín)
 
 4. INTELIGENCIA Y MEMORIA:
    - Si el usuario dice "el primero" o "el de tomates", revisa la última lista que mencionaste para saber a cuál se refiere.
-   - Si te piden consejos, usa primero la herramienta 'get_cultivos_internal' para ver qué tienen plantado y dar consejos personalizados.
-   - Si te piden crear un cultivo, intenta inferir el nombre y ubicación. Si mencionan un dispositivo (ej: "mi placa arduino"), inclúyelo.
+   - Si te piden consejos, usa 'get_cultivos_internal' para ver qué tienen y dar consejos personalizados.
+   - Si piden crear un cultivo, intenta inferir nombre y ubicación.
 """
 
 model = GenerativeModel(
@@ -155,15 +151,12 @@ def handle_chat_message(chat_message: ChatMessage):
             fname = function_call.name
             if fname in available_tools:
                 args = {k: v for k, v in function_call.args.items()}
-                
-                # Ejecutamos la herramienta (devuelve objeto/lista)
                 tool_result = available_tools[fname](**args)
                 
                 if fname == 'create_cultivo_internal':
                     frontend_response["action_performed"] = "create"
                 
-                # --- CLAVE: Convertimos a string SOLO para la IA ---
-                # La IA necesita texto, pero tu Frontend necesitaba la lista arriba.
+                # Convertimos a string SOLO para la IA
                 response = chat.send_message(
                     Part.from_function_response(name=fname, response={"result": str(tool_result)})
                 )

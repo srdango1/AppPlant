@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'; // 1. Importamos useRef y useEffect
+import React, { useState, useRef, useEffect } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -10,18 +10,17 @@ function ChatBot() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // 2. Referencia para el final del chat
+    // Referencia para el auto-scroll
     const messagesEndRef = useRef(null);
 
-    // 3. Función para bajar el scroll
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // 4. Ejecutar scroll cada vez que cambian los mensajes
+    // Scroll cada vez que cambian los mensajes
     useEffect(() => {
         scrollToBottom();
-    }, [messages, isOpen]); // También cuando se abre el chat
+    }, [messages, isOpen]);
 
     const toggleChat = () => setIsOpen(!isOpen);
 
@@ -59,7 +58,6 @@ function ChatBot() {
         }
     };
 
-    // Estilos
     const chatBubbleStyle = {
         position: 'fixed', bottom: '2rem', right: '2rem', width: '4rem', height: '4rem',
         borderRadius: '50%', backgroundColor: 'rgb(7, 136, 39)', color: 'white',
@@ -79,7 +77,7 @@ function ChatBot() {
         alignSelf: from === 'bot' ? 'flex-start' : 'flex-end',
         backgroundColor: from === 'bot' ? '#f0f0f0' : 'rgb(7, 136, 39)',
         color: from === 'bot' ? '#333' : 'white',
-        whiteSpace: 'pre-wrap', // Esto ayuda a respetar los saltos de línea de la lista
+        whiteSpace: 'pre-wrap', // Para respetar saltos de línea de la IA
     });
 
     return (
@@ -94,7 +92,6 @@ function ChatBot() {
                         <div key={index} style={messageStyle(msg.from)}>{msg.text}</div>
                     ))}
                     {isLoading && <div style={messageStyle('bot')}>...</div>}
-                    {/* 5. Elemento invisible al final para el scroll */}
                     <div ref={messagesEndRef} />
                 </div>
 
