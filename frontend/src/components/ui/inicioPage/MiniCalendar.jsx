@@ -3,7 +3,7 @@ import { DayPicker } from 'react-day-picker';
 import { es } from "date-fns/locale";
 import 'react-day-picker/dist/style.css';
 import { format } from "date-fns";
-import NoteModal from "../../NoteModal"; // Importamos el modal que acabamos de crear
+import NoteModal from "../NoteModal"; // Importamos el modal que acabamos de crear
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
