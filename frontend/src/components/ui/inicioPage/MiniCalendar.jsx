@@ -3,96 +3,66 @@ import { DayPicker } from 'react-day-picker';
 import { es } from "date-fns/locale";
 import 'react-day-picker/dist/style.css';
 import { format } from "date-fns";
-import NoteModal from "../NoteModal";
+import NoteModal from "../../NoteModal"; // Importamos el modal que acabamos de crear
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-function MiniCalendar({ onDateSelect }) {
-    const [selected, setSelected] = useState(new Date());
-    const [notes, setNotes] = useState([]);
+function MiniCalendar({ onDateSelect, selectedDate }) {
+    const [selected, setSelected] = useState(selectedDate || new Date());
+    const [noteDates, setNoteDates] = useState([]); // Lista de fechas que tienen notas
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentNote, setCurrentNote] = useState(null);
 
-    const fetchNotes = async () => {
+    // 1. Cargar fechas con notas para poner los puntitos
+    const fetchNoteDates = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/notes`);
             if (response.ok) {
                 const data = await response.json();
-                setNotes(data);
+                // Guardamos solo las fechas únicas
+                const dates = data.map(n => n.date);
+                setNoteDates(dates);
             }
         } catch (error) {
-            console.error("Error cargando notas:", error);
+            console.error("Error fetching notes for calendar:", error);
         }
     };
 
     useEffect(() => {
-        fetchNotes();
-        window.addEventListener('cultivoActualizado', fetchNotes);
-        return () => window.removeEventListener('cultivoActualizado', fetchNotes);
+        fetchNoteDates();
+        // Escuchar cambios globales para actualizar los puntitos al instante
+        window.addEventListener('cultivoActualizado', fetchNoteDates);
+        return () => window.removeEventListener('cultivoActualizado', fetchNoteDates);
     }, []);
 
-    // Días que tienen notas (para los puntitos)
-    const daysWithNotes = notes.map(note => new Date(note.date + 'T12:00:00'));
+    // Sincronizar si la prop cambia
+    useEffect(() => {
+        if (selectedDate) setSelected(selectedDate);
+    }, [selectedDate]);
 
-    const handleDayClick = (day) => {
-        setSelected(day);
-        const dateStr = format(day, 'yyyy-MM-dd');
-        // Buscar nota existente
-        const existing = notes.find(n => n.date === dateStr);
-        setCurrentNote(existing || null);
+    // 2. Función para pintar los estilos de los días
+    const modifiers = {
+        hasNote: (date) => {
+            const dateStr = format(date, 'yyyy-MM-dd');
+            return noteDates.includes(dateStr);
+        }
+    };
+
+    const handleSelect = (date) => {
+        if (!date) return;
+        setSelected(date);
         
-        // ABRIMOS EL MODAL SIEMPRE (sea nueva o existente)
-        // Si estamos en Inicio (sin onDateSelect), abrimos el modal.
-        if (!onDateSelect) {
-            setIsModalOpen(true);
+        if (onDateSelect) {
+            // Si estamos en la página de Notas (nos pasan la función), solo cambiamos la fecha
+            onDateSelect(date);
         } else {
-            // Si estamos en NotasPage, solo seleccionamos la fecha
-            onDateSelect(day);
+            // Si estamos en Inicio (no nos pasan función), abrimos el MODAL
+            setIsModalOpen(true);
         }
-    };
-
-    // --- FUNCIÓN ACTUALIZADA: Recibe Title y Color ---
-    const handleSaveNote = async (title, content, color) => {
-        const dateStr = format(selected, 'yyyy-MM-dd');
-        
-        try {
-            // Si existía, la borramos primero (para simplificar la actualización)
-            if (currentNote) {
-                await fetch(`${API_BASE_URL}/notes/${currentNote.id}`, { method: 'DELETE' });
-            }
-            
-            if (title.trim() || content.trim()) {
-                await fetch(`${API_BASE_URL}/notes`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: title || "Sin título",
-                        content: content,
-                        date: dateStr,
-                        color: color // Enviamos el color
-                    })
-                });
-            }
-            
-            setIsModalOpen(false);
-            fetchNotes();
-            window.dispatchEvent(new CustomEvent('cultivoActualizado'));
-            
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    const handleDeleteNote = async (id) => {
-        await fetch(`${API_BASE_URL}/notes/${id}`, { method: 'DELETE' });
-        setIsModalOpen(false);
-        fetchNotes();
-        window.dispatchEvent(new CustomEvent('cultivoActualizado'));
     };
 
     return (
         <>
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700 flex justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700 flex justify-center w-full">
                 <style>{`
                 .rdp { margin: 0; --rdp-cell-size: 35px; }
                 .rdp-day_selected { background-color: #4CAF50 !important; color: white !important; font-weight: bold; }
@@ -101,13 +71,13 @@ function MiniCalendar({ onDateSelect }) {
                 .dark .rdp-caption_label { color: #4CAF50; }
                 .dark .rdp-button:hover:not([disabled]):not(.rdp-day_selected) { background-color: #374151; }
                 
-                /* PUNTITO INDICADOR */
+                /* ESTILO DEL PUNTITO PARA DÍAS CON NOTAS */
                 .rdp-day_hasNote::after {
                     content: '';
                     position: absolute;
                     bottom: 4px; left: 50%; transform: translateX(-50%);
-                    width: 5px; height: 5px;
-                    background-color: #ff9800;
+                    width: 4px; height: 4px;
+                    background-color: #F59E0B; /* Naranja */
                     border-radius: 50%;
                 }
                 `}</style>
@@ -115,23 +85,23 @@ function MiniCalendar({ onDateSelect }) {
                 <DayPicker
                     mode="single"
                     selected={selected}
-                    onDayClick={handleDayClick}
+                    onSelect={handleSelect}
                     locale={es}
-                    modifiers={{ hasNote: daysWithNotes }}
+                    modifiers={modifiers}
                     modifiersClassNames={{ hasNote: 'rdp-day_hasNote' }}
                     className="text-sm"
                 />
             </div>
 
-            <NoteModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                date={selected}
-                existingNote={currentNote}
-                onSave={handleSaveNote}
-                onDelete={handleDeleteNote}
-            />
+            {/* El Modal solo se abre si NO nos pasaron onDateSelect (es decir, en Inicio) */}
+            {!onDateSelect && (
+                <NoteModal 
+                    isOpen={isModalOpen} 
+                    onClose={() => setIsModalOpen(false)} 
+                    date={selected} 
+                />
+            )}
         </>
-    );
+    )
 }
 export default MiniCalendar;
