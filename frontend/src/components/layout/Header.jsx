@@ -30,7 +30,7 @@ function Header() {
         <Link to="/cultivos" element={<MisCultivosPage/>}>Mis Cultivos</Link>
         <Link to="#" >Estadísticas</Link>
         <Link to="#" >Clima</Link>
-        <Link to="#" >Notas</Link>
+        <Link to="/notas" className="...">Notas</Link>
       </nav>
       
       {/* Botones de Acción  para acceder a las notifiaciones,perfil y settings*/}

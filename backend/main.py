@@ -48,6 +48,12 @@ class CultivoCreate(BaseModel):
     plantas: List[str]
     deviceId: Optional[str] = None
 
+# --- NUEVO MODELO PARA NOTAS ---
+class NoteCreate(BaseModel):
+    title: str
+    content: str
+    date: str # Formato YYYY-MM-DD
+
 class ChatMessage(BaseModel):
     message: str
 
@@ -98,8 +104,36 @@ def get_cultivos(): return get_cultivos_internal()
 def create_cultivo(c: CultivoCreate): 
     return create_cultivo_internal(c.nombre, c.ubicacion, c.plantas, c.deviceId)
 
-# --- CHATBOT (VERTEX AI) ---
+# --- NUEVOS ENDPOINTS DE NOTAS ---
+@app.get("/notes")
+def get_notes(date: Optional[str] = None):
+    try:
+        query = supabase.table('notes').select("*").order('created_at', desc=True)
+        if date:
+            query = query.eq('date', date)
+        response = query.execute()
+        return response.data if response.data else []
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/notes")
+def create_note(note: NoteCreate):
+    try:
+        response = supabase.table('notes').insert(note.dict()).execute()
+        return response.data[0] if response.data else {"error": "Error al guardar"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/notes/{note_id}")
+def delete_note(note_id: str):
+    try:
+        supabase.table('notes').delete().eq('id', note_id).execute()
+        return {"message": "Eliminada"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- CHATBOT (VERTEX AI) ---
 tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos", parameters={"type": "OBJECT", "properties": {}})
 tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
@@ -107,56 +141,49 @@ SYSTEM_PROMPT = """
 Eres PlantCare.
 1. SEGURIDAD: NO drogas.
 2. FORMATO: Texto plano, listas con guiones (-). NO Markdown.
-3. CONTEXTO: Recuerda "el primero", "ese cultivo".
+3. CONTEXTO: Recuerda "el primero".
 """
 
 # Inicialización del modelo
 chat = None
 try:
-    # --- CAMBIO CLAVE: Usamos el modelo que aparece en tu lista de estables ---
+    # Usamos TU modelo preferido
     model = GenerativeModel(
         "gemini-2.5-flash", 
         system_instruction=SYSTEM_PROMPT,
         tools=[Tool(function_declarations=[tool_get, tool_create])]
     )
     chat = model.start_chat()
-    print("✅ Chatbot Vertex iniciado con gemini-2.5-flash.")
+    print("✅ Chatbot Vertex iniciado.")
 except Exception as e:
     print(f"❌ Error al iniciar modelo Vertex: {e}")
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
     global chat
-    
-    if chat is None:
-        try:
-             chat = model.start_chat()
-        except:
-             raise HTTPException(status_code=500, detail="Chat no disponible")
+    if chat is None: raise HTTPException(status_code=500, detail="Chat no disponible")
 
     try:
         response = chat.send_message(chat_message.message)
         frontend_response = {"reply": "", "action_performed": None}
         
-        # Manejo manual de function calling en Vertex
-        function_call = response.candidates[0].content.parts[0].function_call
-        
-        if function_call:
-            fname = function_call.name
-            if fname == 'get_cultivos_internal':
-                res = str(get_cultivos_internal())
-                frontend_response["action_performed"] = "read"
-            elif fname == 'create_cultivo_internal':
-                args = {k: v for k, v in function_call.args.items()}
-                res = str(create_cultivo_internal(**args))
-                frontend_response["action_performed"] = "create"
-            else:
-                res = "Función desconocida"
+        if response.candidates and response.candidates[0].content.parts:
+             for part in response.candidates[0].content.parts:
+                if part.function_call:
+                    fname = part.function_call.name
+                    if fname == 'get_cultivos_internal':
+                        res = str(get_cultivos_internal())
+                        frontend_response["action_performed"] = "read"
+                    elif fname == 'create_cultivo_internal':
+                        args = {k: v for k, v in part.function_call.args.items()}
+                        res = str(create_cultivo_internal(**args))
+                        frontend_response["action_performed"] = "create"
+                    else:
+                        res = "Función desconocida"
 
-            # Devolver resultado a la IA
-            response = chat.send_message(
-                Part.from_function_response(name=fname, response={"result": res})
-            )
+                    response = chat.send_message(
+                        Part.from_function_response(name=fname, response={"result": res})
+                    )
             
         frontend_response["reply"] = response.text
         return frontend_response
