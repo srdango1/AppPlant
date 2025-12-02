@@ -1,31 +1,46 @@
 import os
+import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- USA LA LIBRERÍA QUE SÍ TIENES INSTALADA ---
-import google.generativeai as genai
-from google.generativeai.types import FunctionDeclaration, Tool
+# --- Importaciones de Vertex AI (Para tu JSON) ---
+import vertexai
+from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
+from google.cloud import aiplatform
 
-# --- LIMPIEZA DE VARIABLES (Para evitar conflictos) ---
-if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
-    del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+# --- 1. CONFIGURACIÓN DE CREDENCIALES (JSON) ---
+SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+
+if SERVICE_ACCOUNT_JSON_STRING:
+    try:
+        # Crear archivo temporal con el JSON
+        service_account_info = json.loads(SERVICE_ACCOUNT_JSON_STRING)
+        temp_file_path = "/tmp/service_account.json"
+        with open(temp_file_path, "w") as f:
+            json.dump(service_account_info, f)
+        
+        # Configurar entorno
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
+        GOOGLE_PROJECT_ID = service_account_info.get("project_id")
+        
+        # Inicializar Vertex AI
+        vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
+        print(f"✅ Vertex AI conectado. Proyecto: {GOOGLE_PROJECT_ID}")
+        
+    except Exception as e:
+        print(f"❌ Error crítico leyendo el JSON: {e}")
+else:
+    print("⚠️ ADVERTENCIA: Falta GOOGLE_APPLICATION_CREDENTIALS_JSON")
 
 # --- Configuración Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# --- Configuración IA ---
-gemini_api_key = os.environ.get("GEMINI_API_KEY")
-if not gemini_api_key:
-    print("❌ ERROR: Falta GEMINI_API_KEY.")
-else:
-    genai.configure(api_key=gemini_api_key)
-
-# --- Modelos ---
+# --- Modelos de Datos ---
 class CultivoCreate(BaseModel):
     nombre: str
     ubicacion: str
@@ -67,66 +82,86 @@ def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], dev
             "humidity": "N/A", "nutrients": "N/A", "waterLevel": "N/A"
         }
         res = supabase.table('cultivos').insert(data).execute()
-        return res.data[0] if res.data else {"error": "Error"}
+        return res.data[0] if res.data else {"error": "Error al crear"}
     except Exception as e:
         return {"error": str(e)}
 
-# --- ENDPOINTS ---
+# --- ENDPOINTS API ---
 @app.get("/")
 def health(): return {"status": "ok"}
 
 @app.get("/cultivos")
-def get(): return get_cultivos_internal()
+def get_cultivos(): return get_cultivos_internal()
 
 @app.post("/cultivos")
-def create(c: CultivoCreate): 
+def create_cultivo(c: CultivoCreate): 
     return create_cultivo_internal(c.nombre, c.ubicacion, c.plantas, c.deviceId)
 
-# --- CHATBOT ---
-tools = [get_cultivos_internal, create_cultivo_internal]
+# --- CHATBOT (VERTEX AI) ---
+tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos", parameters={"type": "OBJECT", "properties": {}})
+tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
 SYSTEM_PROMPT = """
 Eres PlantCare.
 1. SEGURIDAD: NO drogas.
 2. FORMATO: Texto plano, listas con guiones (-). NO Markdown.
-3. CONTEXTO: Recuerda "el primero", "ese cultivo".
+3. CONTEXTO: Recuerda "el primero".
 """
 
-# Inicialización
+# Inicialización del modelo
 chat = None
 try:
-    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT, tools=tools)
-    chat = model.start_chat(enable_automatic_function_calling=True)
-    print("✅ Chatbot iniciado.")
+    # Usamos gemini-1.5-flash-001 que es el más estable en Vertex
+    model = GenerativeModel(
+        "gemini-1.5-flash-001", 
+        system_instruction=SYSTEM_PROMPT,
+        tools=[Tool(function_declarations=[tool_get, tool_create])]
+    )
+    chat = model.start_chat()
+    print("✅ Chatbot Vertex iniciado.")
 except Exception as e:
-    print(f"❌ Error inicio IA: {e}")
+    print(f"❌ Error al iniciar modelo: {e}")
 
 @app.post("/chat")
-def handle_chat(msg: ChatMessage):
+def handle_chat_message(chat_message: ChatMessage):
     global chat
-    if not gemini_api_key: raise HTTPException(status_code=500, detail="Falta API Key")
     
+    # Si el chat no está listo, intentamos iniciarlo
     if chat is None:
         try:
-            chat = model.start_chat(enable_automatic_function_calling=True)
+             chat = model.start_chat()
         except:
-            raise HTTPException(status_code=500, detail="Chat no disponible")
+             raise HTTPException(status_code=500, detail="Chat no disponible")
 
     try:
-        response = chat.send_message(msg.message)
-        frontend_resp = {"reply": response.text, "action_performed": None}
+        response = chat.send_message(chat_message.message)
+        frontend_response = {"reply": "", "action_performed": None}
         
-        # Detectar acción
-        try:
-            if len(chat.history) >= 2:
-                for part in chat.history[-2].parts:
-                    if part.function_call and part.function_call.name == 'create_cultivo_internal':
-                        frontend_resp["action_performed"] = "create"
-        except: pass
+        # Manejo manual de la llamada a función de Vertex
+        function_call = response.candidates[0].content.parts[0].function_call
+        
+        if function_call:
+            fname = function_call.name
+            if fname == 'get_cultivos_internal':
+                res = str(get_cultivos_internal())
+                frontend_response["action_performed"] = "read"
+            elif fname == 'create_cultivo_internal':
+                args = {k: v for k, v in function_call.args.items()}
+                res = str(create_cultivo_internal(**args))
+                frontend_response["action_performed"] = "create"
+            else:
+                res = "Función desconocida"
 
-        return frontend_resp
-    except:
-        # Reinicio forzado
-        try: chat = model.start_chat(enable_automatic_function_calling=True)
+            # Devolver resultado a la IA
+            response = chat.send_message(
+                Part.from_function_response(name=fname, response={"result": res})
+            )
+            
+        frontend_response["reply"] = response.text
+        return frontend_response
+
+    except Exception as e:
+        print(f"Error chat: {e}")
+        try: chat = model.start_chat()
         except: pass
-        return {"reply": "Error de conexión. Intenta de nuevo."}
+        return {"reply": "Tuve un problema técnico. ¿Me lo repites?"}
