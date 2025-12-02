@@ -5,9 +5,15 @@ from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Google AI (Librería Simple) ---
+# --- Importaciones de Google AI (Versión Simple) ---
 import google.generativeai as genai
 from google.generativeai.types import FunctionDeclaration, Tool
+
+# --- LIMPIEZA DE ENTORNO (Para evitar el error 401) ---
+# Esto elimina cualquier rastro de la configuración anterior de Vertex AI
+os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
+os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS_JSON", None)
+os.environ.pop("GOOGLE_PROJECT_ID", None)
 
 # --- Configuración de Supabase ---
 supabase_url = os.environ.get("SUPABASE_URL")
@@ -17,7 +23,7 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google AI ---
 gemini_api_key = os.environ.get("GEMINI_API_KEY")
 if not gemini_api_key:
-    print("ADVERTENCIA: GEMINI_API_KEY no está configurada. El chat no funcionará.")
+    print("ADVERTENCIA CRÍTICA: GEMINI_API_KEY no está configurada en Render.")
 else:
     genai.configure(api_key=gemini_api_key)
 
@@ -54,6 +60,7 @@ def get_cultivos_internal():
         response = supabase.table('cultivos').select("*").execute()
         return response.data if response.data else []
     except Exception as e:
+        print(f"Error DB: {e}")
         return []
 
 def create_cultivo_internal(nombre: str, ubicacion: str, plantas: List[str], deviceId: Optional[str] = None):
@@ -82,21 +89,35 @@ def create_cultivo_api(cultivo: CultivoCreate):
 
 # --- CHATBOT ---
 
-# Lista de herramientas (funciones reales)
+# Lista de herramientas
 tools_list = [get_cultivos_internal, create_cultivo_internal]
 
+# --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Eres PlantCare, un asistente agrónomo amable.
+Eres PlantCare, un asistente agrónomo experto, amable y profesional.
 
-REGLAS:
-1. PERSONALIDAD: Sé cercano y usa español neutro.
-2. SEGURIDAD: Rechaza temas ilegales.
-3. FORMATO: Usa texto plano y listas con guiones (-). NO Markdown.
-4. CONTEXTO: Recuerda lo que hablamos ("el primero", "ese cultivo").
-5. ACCIÓN: Si creas un cultivo, confirma los detalles.
+REGLAS PRINCIPALES:
+1. PERSONALIDAD:
+   - Sé amable y cercano ("¡Claro que sí!", "Me parece genial").
+   - Responde siempre en Español Neutro y cuida la ortografía (usa signos ¿? ¡!).
+
+2. SEGURIDAD (ESTRICTO):
+   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan, di amablemente que solo trabajas con cultivos legales.
+
+3. FORMATO VISUAL (MUY IMPORTANTE):
+   - NO uses Markdown (nada de **negritas**, ## títulos). Texto plano solamente.
+   - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
+   - Ejemplo:
+     - Tomates (Balcón)
+     - Lechugas (Jardín)
+
+4. INTELIGENCIA Y MEMORIA:
+   - Si el usuario dice "el primero" o "el de tomates", revisa la última lista que mencionaste para saber a cuál se refiere.
+   - Si te piden consejos, usa 'get_cultivos_internal' para ver qué tienen y dar consejos personalizados.
+   - Si piden crear un cultivo, intenta inferir nombre y ubicación.
 """
 
-# Inicialización del modelo (Usamos 1.5 Flash que es el estándar para API Keys)
+# Inicialización del modelo (Usamos 1.5 Flash, el estándar para API Keys)
 try:
     model = genai.GenerativeModel(
         model_name='gemini-1.5-flash',
@@ -105,8 +126,9 @@ try:
     )
     # Chat con historial automático habilitado
     chat = model.start_chat(enable_automatic_function_calling=True)
+    print("✅ Chatbot iniciado correctamente con API Key.")
 except Exception as e:
-    print(f"Error al iniciar modelo: {e}")
+    print(f"❌ Error al iniciar modelo: {e}")
     chat = None
 
 @app.post("/chat")
@@ -114,10 +136,19 @@ def handle_chat_message(chat_message: ChatMessage):
     global chat # Usamos la variable global
     
     if not gemini_api_key or chat is None:
-        raise HTTPException(status_code=500, detail="Chat no configurado.")
+        # Intentamos reconectar si falló al inicio
+        if gemini_api_key:
+             try:
+                genai.configure(api_key=gemini_api_key)
+                model = genai.GenerativeModel(model_name='gemini-1.5-flash', system_instruction=SYSTEM_PROMPT, tools=tools_list)
+                chat = model.start_chat(enable_automatic_function_calling=True)
+             except:
+                raise HTTPException(status_code=500, detail="Chat no configurado.")
+        else:
+             raise HTTPException(status_code=500, detail="Falta API Key")
 
     try:
-        # En esta librería, la "magia" de llamar herramientas es automática
+        # En esta librería, la llamada de herramientas es automática
         response = chat.send_message(chat_message.message)
         
         frontend_response = {
@@ -126,9 +157,9 @@ def handle_chat_message(chat_message: ChatMessage):
         }
 
         # Detectamos si se creó un cultivo revisando el historial reciente
-        # (Si la IA decidió llamar a create_cultivo_internal, estará en el historial)
-        for content in chat.history:
-            for part in content.parts:
+        if len(chat.history) >= 2:
+            last_parts = chat.history[-2].parts
+            for part in last_parts:
                 if part.function_call and part.function_call.name == 'create_cultivo_internal':
                     frontend_response["action_performed"] = "create"
 
@@ -137,5 +168,8 @@ def handle_chat_message(chat_message: ChatMessage):
     except Exception as e:
         print(f"Error chat: {e}")
         # Reiniciar chat en caso de error
-        chat = model.start_chat(enable_automatic_function_calling=True)
-        return {"reply": "Tuve un pequeño problema. ¿Podrías repetirlo?"}
+        try:
+            chat = model.start_chat(enable_automatic_function_calling=True)
+        except:
+            pass
+        return {"reply": "Tuve un pequeño problema técnico. ¿Podrías repetirlo?"}
