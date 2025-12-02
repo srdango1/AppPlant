@@ -17,7 +17,8 @@ const VARIANTS = {
 };
 
 // Componente funcional con props desestructuradas
-const Button = ({ children, onClick, variant = 'primary', className = '', to }) => {
+// AÑADIDO: ahora recibimos 'type' como prop
+const Button = ({ children, onClick, variant = 'primary', className = '', to, type = 'button' }) => {
     
     // Concatenamos las clases base con las clases específicas de la variante seleccionada
     const variantClasses = VARIANTS[variant] || VARIANTS.primary;
@@ -36,9 +37,9 @@ const Button = ({ children, onClick, variant = 'primary', className = '', to }) 
 
     return (
         <button
-            type="button" 
+            // AÑADIDO: Usamos la variable type en lugar de "button" fijo
+            type={type} 
             onClick={onClick}
-            
             className={allClasses}
         >
             {children}
