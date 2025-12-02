@@ -10,14 +10,14 @@ function ChatBot() {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Referencia para el auto-scroll
+    // Referencia para el final del chat (Auto-scroll)
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // Scroll cada vez que cambian los mensajes
+    // Ejecutar scroll cada vez que cambian los mensajes o se abre el chat
     useEffect(() => {
         scrollToBottom();
     }, [messages, isOpen]);
@@ -77,7 +77,7 @@ function ChatBot() {
         alignSelf: from === 'bot' ? 'flex-start' : 'flex-end',
         backgroundColor: from === 'bot' ? '#f0f0f0' : 'rgb(7, 136, 39)',
         color: from === 'bot' ? '#333' : 'white',
-        whiteSpace: 'pre-wrap', // Para respetar saltos de línea de la IA
+        whiteSpace: 'pre-wrap', // Respeta los saltos de línea de la lista
     });
 
     return (
@@ -92,6 +92,7 @@ function ChatBot() {
                         <div key={index} style={messageStyle(msg.from)}>{msg.text}</div>
                     ))}
                     {isLoading && <div style={messageStyle('bot')}>...</div>}
+                    {/* Elemento invisible para el scroll */}
                     <div ref={messagesEndRef} />
                 </div>
 
