@@ -3,83 +3,96 @@ import { DayPicker } from 'react-day-picker';
 import { es } from "date-fns/locale";
 import 'react-day-picker/dist/style.css';
 import { format } from "date-fns";
-import NoteModal from "../NoteModal"; // Importamos el modal que acabamos de crear
+import NoteModal from "../NoteModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// --- 1. MAPA DE COLORES ---
+// Convierte el color de fondo de la nota (suave) al color del puntito (fuerte)
+const getDotColor = (noteColorClass) => {
+    if (!noteColorClass) return null;
+    if (noteColorClass.includes('red')) return 'bg-red-500';
+    if (noteColorClass.includes('blue')) return 'bg-blue-500';
+    if (noteColorClass.includes('green')) return 'bg-green-500';
+    if (noteColorClass.includes('yellow')) return 'bg-yellow-500';
+    if (noteColorClass.includes('purple')) return 'bg-purple-500';
+    return 'bg-gray-400'; // Default para notas blancas
+};
+
 function MiniCalendar({ onDateSelect, selectedDate }) {
     const [selected, setSelected] = useState(selectedDate || new Date());
-    const [noteDates, setNoteDates] = useState([]); // Lista de fechas que tienen notas
+    const [notesMap, setNotesMap] = useState({}); // Guardamos fecha -> color
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // 1. Cargar fechas con notas para poner los puntitos
-    const fetchNoteDates = async () => {
+    // --- 2. CARGAR Y PROCESAR NOTAS ---
+    const fetchNotes = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/notes`);
             if (response.ok) {
                 const data = await response.json();
-                // Guardamos solo las fechas únicas
-                const dates = data.map(n => n.date);
-                setNoteDates(dates);
+                
+                // Creamos un diccionario: { "2025-12-06": "bg-red-500", ... }
+                const newMap = {};
+                data.forEach(note => {
+                    // Si hay varias notas un día, el color de la última sobrescribe (o podrías lógica más compleja)
+                    if (note.date) {
+                        newMap[note.date] = getDotColor(note.color);
+                    }
+                });
+                setNotesMap(newMap);
             }
         } catch (error) {
-            console.error("Error fetching notes for calendar:", error);
+            console.error("Error cargando notas:", error);
         }
     };
 
     useEffect(() => {
-        fetchNoteDates();
-        // Escuchar cambios globales para actualizar los puntitos al instante
-        window.addEventListener('cultivoActualizado', fetchNoteDates);
-        return () => window.removeEventListener('cultivoActualizado', fetchNoteDates);
+        fetchNotes();
+        window.addEventListener('cultivoActualizado', fetchNotes);
+        return () => window.removeEventListener('cultivoActualizado', fetchNotes);
     }, []);
 
-    // Sincronizar si la prop cambia
     useEffect(() => {
         if (selectedDate) setSelected(selectedDate);
     }, [selectedDate]);
 
-    // 2. Función para pintar los estilos de los días
-    const modifiers = {
-        hasNote: (date) => {
-            const dateStr = format(date, 'yyyy-MM-dd');
-            return noteDates.includes(dateStr);
-        }
-    };
-
     const handleSelect = (date) => {
         if (!date) return;
         setSelected(date);
-        
         if (onDateSelect) {
-            // Si estamos en la página de Notas (nos pasan la función), solo cambiamos la fecha
             onDateSelect(date);
         } else {
-            // Si estamos en Inicio (no nos pasan función), abrimos el MODAL
             setIsModalOpen(true);
         }
     };
+
+    // --- 3. COMPONENTE PERSONALIZADO PARA EL DÍA ---
+    // Esto reemplaza el renderizado por defecto del número del día
+    function CustomDayContent(props) {
+        const { date } = props;
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const dotColor = notesMap[dateStr]; // Buscamos si este día tiene color
+
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                <span className="z-10">{format(date, 'd')}</span>
+                {dotColor && (
+                    <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                )}
+            </div>
+        );
+    }
 
     return (
         <>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border border-gray-200 dark:border-gray-700 flex justify-center w-full">
                 <style>{`
-                .rdp { margin: 0; --rdp-cell-size: 35px; }
+                .rdp { margin: 0; --rdp-cell-size: 40px; }
                 .rdp-day_selected { background-color: #4CAF50 !important; color: white !important; font-weight: bold; }
-                .rdp-button:hover:not([disabled]):not(.rdp-day_selected) { background-color: #f3f4f6; }
+                .rdp-button:hover:not([disabled]):not(.rdp-day_selected) { background-color: #f3f4f6; border-radius: 8px; }
                 .dark .rdp-day { color: #e5e7eb; }
                 .dark .rdp-caption_label { color: #4CAF50; }
                 .dark .rdp-button:hover:not([disabled]):not(.rdp-day_selected) { background-color: #374151; }
-                
-                /* ESTILO DEL PUNTITO PARA DÍAS CON NOTAS */
-                .rdp-day_hasNote::after {
-                    content: '';
-                    position: absolute;
-                    bottom: 4px; left: 50%; transform: translateX(-50%);
-                    width: 4px; height: 4px;
-                    background-color: #F59E0B; /* Naranja */
-                    border-radius: 50%;
-                }
                 `}</style>
 
                 <DayPicker
@@ -87,13 +100,13 @@ function MiniCalendar({ onDateSelect, selectedDate }) {
                     selected={selected}
                     onSelect={handleSelect}
                     locale={es}
-                    modifiers={modifiers}
-                    modifiersClassNames={{ hasNote: 'rdp-day_hasNote' }}
+                    components={{
+                        DayContent: CustomDayContent // ¡Aquí inyectamos nuestro renderizador!
+                    }}
                     className="text-sm"
                 />
             </div>
 
-            {/* El Modal solo se abre si NO nos pasaron onDateSelect (es decir, en Inicio) */}
             {!onDateSelect && (
                 <NoteModal 
                     isOpen={isModalOpen} 
