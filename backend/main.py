@@ -31,7 +31,6 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # --- Configuración de Google Vertex AI ---
 GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID")
 if GOOGLE_PROJECT_ID:
-    # Usamos us-central1
     vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
     aiplatform.init(project=GOOGLE_PROJECT_ID, location="us-central1")
 
@@ -67,7 +66,7 @@ def get_cultivos_internal():
     """Obtiene todos los registros de la tabla 'cultivos'."""
     try:
         response = supabase.table('cultivos').select("*").execute()
-        # Devuelve la lista real (Array) para que el Frontend no se rompa
+        # Devuelve la lista real para el frontend
         return response.data if response.data else []
     except Exception as e:
         print(f"Error DB: {e}")
@@ -92,7 +91,7 @@ def health_check(): return {"status": "ok", "message": "Backend is running!"}
 
 @app.get("/cultivos")
 def get_cultivos_api(): 
-    return get_cultivos_internal() # El frontend recibe su lista correctamente
+    return get_cultivos_internal()
 
 @app.post("/cultivos")
 def create_cultivo_api(cultivo: CultivoCreate): 
@@ -103,40 +102,41 @@ def create_cultivo_api(cultivo: CultivoCreate):
 tool_get = FunctionDeclaration(name="get_cultivos_internal", description="Ver lista de cultivos del usuario", parameters={"type": "OBJECT", "properties": {}})
 tool_create = FunctionDeclaration(name="create_cultivo_internal", description="Crear cultivo", parameters={"type": "OBJECT", "properties": {"nombre": {"type": "STRING"}, "ubicacion": {"type": "STRING"}, "plantas": {"type": "ARRAY", "items": {"type": "STRING"}}, "deviceId": {"type": "STRING"}}, "required": ["nombre", "ubicacion", "plantas"]})
 
-# --- SYSTEM PROMPT MEJORADO (Tu petición) ---
+# --- SYSTEM PROMPT ---
 SYSTEM_PROMPT = """
-Eres PlantCare, un asistente agrónomo experto.
+Eres PlantCare, un asistente agrónomo experto, amable y profesional.
 
-REGLAS DE ORO:
-1. FORMATO VISUAL (ESTRICTO):
-   - NO USES FORMATO MARKDOWN. Prohibido usar negritas (**texto**) o encabezados (##).
-   - Escribe solo texto plano.
-   - Para listas, usa guiones simples (-) y salta de línea.
-   - Ejemplo aceptado:
-     - Tomates (En el balcón)
-     - Lechugas (En el patio)
+REGLAS PRINCIPALES:
+1. PERSONALIDAD:
+   - Sé amable y cercano ("¡Claro que sí!", "Me parece genial").
+   - Responde siempre en Español Neutro y cuida la ortografía (usa signos ¿? ¡!).
 
-2. MEMORIA Y CONTEXTO:
-   - Si el usuario dice "el primero" o "el segundo", refiere al orden de la última lista que diste.
-   - Recuerda lo que acabamos de hablar en esta sesión.
+2. SEGURIDAD (ESTRICTO):
+   - Tienes PROHIBIDO ayudar con plantas ilegales o drogas (cannabis, marihuana, etc.). Si te preguntan, di amablemente que solo trabajas con cultivos legales.
 
-3. SEGURIDAD:
-   - Rechaza amablemente cualquier petición sobre drogas o plantas ilegales.
+3. FORMATO VISUAL (MUY IMPORTANTE):
+   - NO uses Markdown (nada de **negritas**, ## títulos). Texto plano solamente.
+   - Para listas, usa guiones simples (-) y pon cada elemento en una línea nueva.
+   - Ejemplo:
+     - Tomates (Balcón)
+     - Lechugas (Jardín)
 
-4. ACCIONES:
-   - Si te piden consejos, PRIMERO usa la herramienta 'get_cultivos_internal' para saber qué tienen.
+4. INTELIGENCIA Y MEMORIA:
+   - Si el usuario dice "el primero" o "el de tomates", revisa la última lista que mencionaste para saber a cuál se refiere.
+   - Si te piden consejos, usa 'get_cultivos_internal' para ver qué tienen y dar consejos personalizados.
+   - Si piden crear un cultivo, intenta inferir nombre y ubicación.
 """
 
-# --- AQUÍ ESTÁ EL ARREGLO: Usamos el modelo que SÍ tienes activado ---
+# Usamos el modelo ESTABLE que ya confirmamos
 model = GenerativeModel(
-    "gemini-2.5-flash-preview-09-2025", 
+    "gemini-1.5-flash-001", 
     system_instruction=SYSTEM_PROMPT,
     tools=[Tool(function_declarations=[tool_get, tool_create])]
 )
 
 available_tools = {"get_cultivos_internal": get_cultivos_internal, "create_cultivo_internal": create_cultivo_internal}
 
-# Chat Global (fuera de la función) para tener memoria
+# Chat Global
 chat = model.start_chat()
 
 @app.post("/chat")
@@ -152,14 +152,11 @@ def handle_chat_message(chat_message: ChatMessage):
             fname = function_call.name
             if fname in available_tools:
                 args = {k: v for k, v in function_call.args.items()}
-                
-                # Ejecutamos la herramienta (obtenemos lista/objeto)
                 tool_result = available_tools[fname](**args)
                 
                 if fname == 'create_cultivo_internal':
                     frontend_response["action_performed"] = "create"
                 
-                # Convertimos a STRING solo para que la IA lo lea
                 response = chat.send_message(
                     Part.from_function_response(name=fname, response={"result": str(tool_result)})
                 )
@@ -168,7 +165,5 @@ def handle_chat_message(chat_message: ChatMessage):
         return frontend_response
     except Exception as e:
         print(f"Error chat: {e}")
-        # Reiniciamos el chat si hay error grave para no trabar la conversación
-        global chat
-        chat = model.start_chat()
+        # Aquí eliminamos la lógica compleja de reinicio para evitar el SyntaxError
         return {"reply": "Tuve un pequeño problema de conexión. ¿Me lo repites?"}
