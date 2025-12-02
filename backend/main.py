@@ -6,7 +6,7 @@ from supabase import create_client, Client
 from pydantic import BaseModel
 from typing import List, Optional
 
-# --- Importaciones de Vertex AI (Para tu JSON) ---
+# --- Importaciones de Vertex AI (Para JSON) ---
 import vertexai
 from vertexai.generative_models import GenerativeModel, Tool, Part, FunctionDeclaration
 from google.cloud import aiplatform
@@ -16,7 +16,7 @@ SERVICE_ACCOUNT_JSON_STRING = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSO
 
 if SERVICE_ACCOUNT_JSON_STRING:
     try:
-        # Crear archivo temporal con el JSON
+        # Crear archivo temporal
         service_account_info = json.loads(SERVICE_ACCOUNT_JSON_STRING)
         temp_file_path = "/tmp/service_account.json"
         with open(temp_file_path, "w") as f:
@@ -26,7 +26,7 @@ if SERVICE_ACCOUNT_JSON_STRING:
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
         GOOGLE_PROJECT_ID = service_account_info.get("project_id")
         
-        # Inicializar Vertex AI
+        # Inicializar Vertex AI (us-central1 es la región más segura)
         vertexai.init(project=GOOGLE_PROJECT_ID, location="us-central1")
         print(f"✅ Vertex AI conectado. Proyecto: {GOOGLE_PROJECT_ID}")
         
@@ -108,10 +108,10 @@ Eres PlantCare.
 3. CONTEXTO: Recuerda "el primero".
 """
 
-# Inicialización del modelo
+# Inicialización
 chat = None
 try:
-    # Usamos gemini-1.5-flash-001 que es el más estable en Vertex
+    # Modelo estable para Vertex AI
     model = GenerativeModel(
         "gemini-1.5-flash-001", 
         system_instruction=SYSTEM_PROMPT,
@@ -120,13 +120,12 @@ try:
     chat = model.start_chat()
     print("✅ Chatbot Vertex iniciado.")
 except Exception as e:
-    print(f"❌ Error al iniciar modelo: {e}")
+    print(f"❌ Error al iniciar modelo Vertex: {e}")
 
 @app.post("/chat")
 def handle_chat_message(chat_message: ChatMessage):
     global chat
     
-    # Si el chat no está listo, intentamos iniciarlo
     if chat is None:
         try:
              chat = model.start_chat()
@@ -137,25 +136,25 @@ def handle_chat_message(chat_message: ChatMessage):
         response = chat.send_message(chat_message.message)
         frontend_response = {"reply": "", "action_performed": None}
         
-        # Manejo manual de la llamada a función de Vertex
-        function_call = response.candidates[0].content.parts[0].function_call
-        
-        if function_call:
-            fname = function_call.name
-            if fname == 'get_cultivos_internal':
-                res = str(get_cultivos_internal())
-                frontend_response["action_performed"] = "read"
-            elif fname == 'create_cultivo_internal':
-                args = {k: v for k, v in function_call.args.items()}
-                res = str(create_cultivo_internal(**args))
-                frontend_response["action_performed"] = "create"
-            else:
-                res = "Función desconocida"
+        # Manejo manual de function calling en Vertex
+        if response.candidates and response.candidates[0].content.parts:
+             for part in response.candidates[0].content.parts:
+                if part.function_call:
+                    fname = part.function_call.name
+                    if fname == 'get_cultivos_internal':
+                        res = str(get_cultivos_internal())
+                        frontend_response["action_performed"] = "read"
+                    elif fname == 'create_cultivo_internal':
+                        args = {k: v for k, v in part.function_call.args.items()}
+                        res = str(create_cultivo_internal(**args))
+                        frontend_response["action_performed"] = "create"
+                    else:
+                        res = "Función desconocida"
 
-            # Devolver resultado a la IA
-            response = chat.send_message(
-                Part.from_function_response(name=fname, response={"result": res})
-            )
+                    # Respuesta a la IA
+                    response = chat.send_message(
+                        Part.from_function_response(name=fname, response={"result": res})
+                    )
             
         frontend_response["reply"] = response.text
         return frontend_response
