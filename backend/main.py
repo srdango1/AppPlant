@@ -52,7 +52,8 @@ class CultivoCreate(BaseModel):
 class NoteCreate(BaseModel):
     title: str
     content: str
-    date: str # Formato YYYY-MM-DD
+    date: str
+    color: Optional[str] = "bg-white"
 
 class ChatMessage(BaseModel):
     message: str
