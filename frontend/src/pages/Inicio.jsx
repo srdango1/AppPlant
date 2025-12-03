@@ -7,6 +7,7 @@ import CultivationCard from "../components/ui/inicioPage/CultivationCard";
 import Sidebar from "../components/layout/InicioSideBar";
 
 import useWeather from '../hooks/useWeather';
+import { formatWeatherData } from "../utils/utilsWeather";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -26,80 +27,22 @@ const getVisualImageUrl = (plantas) => {
     };
     return plantImageMap[firstPlant] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3';
 };
-// Función para obtener el nombre del día (ej: "Lunes")
-const getDayName = (dateString) => {
-    const date = new Date(dateString * 1000);
-    return date.toLocaleDateString('es-ES', { weekday: 'long' });
-};
-
-// Función para procesar la lista de 40 items y sacar predicción para 2 días
-const getDailyForecast = (list) => {
-    if (!list) return [];
-    const tomorrow = list[8]; 
-    const dayAfter = list[16];
-
-    if (!tomorrow || !dayAfter) return [];
-
-        return [
-        {
-            day: "Mañana", // Forzamos que el primero diga "Mañana"
-            iconName: getWeatherIcon(tomorrow.weather[0].icon), // Usamos tu traductor de iconos
-            // Simulamos Max/Min usando la temp de ese momento +/- 2 grados 
-            // (Para max/min real habría que recorrer todo el día, pero esto basta por ahora)
-            tempRange: `${Math.round(tomorrow.main.temp)}° / ${Math.round(tomorrow.main.temp - 3)}°`,
-            isHighlighted: true
-        },
-        {
-            day: getDayName(dayAfter.dt).charAt(0).toUpperCase() + getDayName(dayAfter.dt).slice(1), // Ej: "Miércoles"
-            iconName: getWeatherIcon(dayAfter.weather[0].icon),
-            tempRange: `${Math.round(dayAfter.main.temp)}° / ${Math.round(dayAfter.main.temp - 3)}°`,
-            isHighlighted: false
-        }
-    ];
-};
-
-const getWeatherIcon = (code) => {
-    const iconMap = {
-        // Día
-        '01d': 'wb_sunny',           // Despejado
-        '02d': 'partly_cloudy_day',  // Pocas nubes
-        '03d': 'cloud',              // Nubes dispersas
-        '04d': 'cloud',              // Nublado
-        '09d': 'rainy',              // Llovizna
-        '10d': 'water_drop',         // Lluvia
-        '11d': 'thunderstorm',       // Tormenta
-        '13d': 'ac_unit',            // Nieve
-        '50d': 'mist',               // Neblina
-        
-        //Noche
-        '01n': 'bedtime',            // Despejado noche
-        '02n': 'nights_stay',        // Pocas nubes noche
-        '03n': 'cloud',
-        '04n': 'cloud',
-        '09n': 'rainy',
-        '10n': 'water_drop',
-        '11n': 'thunderstorm',
-        '13n': 'ac_unit',
-        '50n': 'mist',
-    };
-    return iconMap[code] || 'partly_cloudy_day';
-};
 
 function Inicio() {
+
     const [cultivos, setCultivos] = useState([]);
     
-    // --- AQUÍ ESTABA EL ERROR: Nos aseguramos de declarar 'stats' ---
     const [stats, setStats] = useState({
         humedad: "0%",
         temperatura: "0°C",
         agua: "0%",
         luz: "0%"
     });
-    // ---------------------------------------------------------------
+
+    // Hook del clima
     const { data: weatherData, loading: weatherLoading, error: weatherError } = useWeather('Osorno');
     
-
-    
+    // Fetch de Cultivos
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -108,13 +51,12 @@ function Inicio() {
                     const data = await response.json();
                     setCultivos(data);
 
-                    // Si hay cultivos, mostramos datos "vivos" (simulados)
                     if (data.length > 0) {
                         setStats({
-                            humedad: "65%",
-                            temperatura: "24°C",
-                            agua: "80%",
-                            luz: "75%"
+                            humedad: "0%",
+                            temperatura: "0°C",
+                            agua: "0%",
+                            luz: "0%"
                         });
                     }
                 }
@@ -125,11 +67,9 @@ function Inicio() {
         fetchData();
     }, []);
 
-    // --- ESCUCHAR EVENTO PARA RECARGAR ---
-    // Esto hace que si el Chatbot crea un cultivo, el inicio se actualice solo
+    // Listener de eventos
     useEffect(() => {
         const handleRecargar = () => {
-             // Reutilizamos la lógica de fetch (copiando para simplificar o extraer a función)
              fetch(`${API_BASE_URL}/cultivos`)
                 .then(res => res.json())
                 .then(data => {
@@ -147,15 +87,9 @@ function Inicio() {
         return () => window.removeEventListener('cultivoActualizado', handleRecargar);
     }, []);
 
-    const processedWeather = weatherData && !weatherError && weatherData.list ?{
-        city: weatherData.city ? weatherData.city.name : 'N/A',
-        temperature: Math.round(weatherData.list[0].main.temp),
-        condition: weatherData.list[0].weather[0].description,
-        iconName: getWeatherIcon(weatherData.list[0].weather[0].icon),
-        humidity: weatherData.list[0].main.humidity,
-        wind: weatherData.list[0].wind.speed,
-        forecast: getDailyForecast(weatherData.list)
-    } : null;
+
+    const processedWeather = formatWeatherData(weatherData, weatherError);
+
     
     return (
         <div className="relative flex min-h-screen w-full flex-col">
@@ -164,34 +98,30 @@ function Inicio() {
                     
                     {/* Tarjetas de Estadísticas */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                        {/* Aquí es donde fallaba si 'stats' no estaba definido */}
                         <StatsCard title="Humedad promedio" value={stats.humedad} />
                         <StatsCard title="Temperatura promedio" value={stats.temperatura} />
                         <StatsCard title="Nivel de agua" value={stats.agua} />
                         <StatsCard title="Luz recibida" value={stats.luz} />
                     </div>
                     
-                  {weatherLoading ? (
-                        // 1. Estado de Carga
+                    {/* Widget del Clima con manejo de carga INTEGRADO */}
+                    {weatherLoading ? (
                         <div className="p-6 mb-6 text-center text-gray-500 border border-dashed border-gray-300 rounded-xl">
                             <span className="material-symbols-outlined animate-spin text-xl mr-2 align-middle">refresh</span>
                             <span className="align-middle">Cargando datos del clima...</span>
                         </div>
                     ) : weatherError ? (
-                        // 2. Estado de Error (Nuevo)
                         <div className="p-6 mb-6 text-center text-red-600 bg-red-50 border border-red-200 rounded-xl">
                             <p className="font-bold flex items-center justify-center gap-2">
                                 <span className="material-symbols-outlined">warning</span>
                                 No se pudo cargar el clima
                             </p>
-                            <p className="text-sm mt-1">Verifica tu API Key o la conexión.</p>
                         </div>
                     ) : processedWeather ? (
-                        // 3. Estado de Éxito (Mostrar Widget)
                         <WeatherWidget 
                             city={processedWeather.city}
                             temperature={processedWeather.temperature}
-                            condition={processedWeather.condition}
+                            description={processedWeather.condition}
                             humidity={processedWeather.humidity}
                             wind={processedWeather.wind}
                             iconName={processedWeather.iconName}
