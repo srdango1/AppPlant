@@ -71,7 +71,7 @@ const getWeatherIcon = (code) => {
         '13d': 'ac_unit',            // Nieve
         '50d': 'mist',               // Neblina
         
-        //iconos de noche
+        //Noche
         '01n': 'bedtime',            // Despejado noche
         '02n': 'nights_stay',        // Pocas nubes noche
         '03n': 'cloud',
@@ -156,6 +156,7 @@ function Inicio() {
         wind: weatherData.list[0].wind.speed,
         forecast: getDailyForecast(weatherData.list)
     } : null;
+    
     return (
         <div className="relative flex min-h-screen w-full flex-col">
             <div className="flex flex-1">

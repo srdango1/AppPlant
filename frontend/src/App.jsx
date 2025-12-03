@@ -10,6 +10,7 @@ import NotasPage from './pages/NotasPage';
 // Importa el nuevo componente de ChatBot
 import ChatBot from './components/ui/ChatBot';
 import Inicio from './pages/Inicio';
+import WeatherPage from './pages/WeatherPage';
 
 function App (){
   return(
@@ -22,6 +23,7 @@ function App (){
             <Route path='/cultivos/nuevo' element={<AddCultivoPage/>}/>
             <Route path='/cultivos/:id' element={<CultivosDetalle/>}/>
             <Route path='/notas' element={<NotasPage/>}/>
+            <Route path='/clima' element={<WeatherPage/>}/>
           </Routes>
           
         {/* Añade el ChatBot aquí */}

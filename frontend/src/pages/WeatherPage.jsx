@@ -5,7 +5,9 @@ import Header from '../components/layout/Header';
 import CurrentWeatherCard from '../components/ui/climaPage/WeatherCard';
 import HourlyForecastWidget from '../components/ui/climaPage/HourlyForecastWidget'
 import MetricDetailItem from '../components/ui/climaPage/MetricDetailItem'
-import weatherAPI from '../services/weatherAPI';
+import WeatherWidget from '../components/ui/inicioPage/WeatherWidget';
+
+import useWeather from '../hooks/useWeather';
 
 
 // Datos estáticos para el prototipo
@@ -23,86 +25,79 @@ const CURRENT_DETAILS = [
     { label: "Presión Atmosférica", value: "1012 hPa" },
 ];
 
+const getDayName = (dateString) => {
+    const date = new Date(dateString * 1000);
+    return date.toLocaleDateString('es-ES', { weekday: 'long' });
+};
+
+// Función para procesar la lista de 40 items y sacar predicción para 2 días
+const getDailyForecast = (list) => {
+    if (!list) return [];
+    const tomorrow = list[8]; 
+    const dayAfter = list[16];
+
+    if (!tomorrow || !dayAfter) return [];
+
+        return [
+        {
+            day: "Mañana", // Forzamos que el primero diga "Mañana"
+            iconName: getWeatherIcon(tomorrow.weather[0].icon), // Usamos tu traductor de iconos
+            // Simulamos Max/Min usando la temp de ese momento +/- 2 grados 
+            // (Para max/min real habría que recorrer todo el día, pero esto basta por ahora)
+            tempRange: `${Math.round(tomorrow.main.temp)}° / ${Math.round(tomorrow.main.temp - 3)}°`,
+            isHighlighted: true
+        },
+        {
+            day: getDayName(dayAfter.dt).charAt(0).toUpperCase() + getDayName(dayAfter.dt).slice(1), // Ej: "Miércoles"
+            iconName: getWeatherIcon(dayAfter.weather[0].icon),
+            tempRange: `${Math.round(dayAfter.main.temp)}° / ${Math.round(dayAfter.main.temp - 3)}°`,
+            isHighlighted: false
+        }
+    ];
+};
+
+const getWeatherIcon = (code) => {
+    const iconMap = {
+        // Día
+        '01d': 'wb_sunny',           // Despejado
+        '02d': 'partly_cloudy_day',  // Pocas nubes
+        '03d': 'cloud',              // Nubes dispersas
+        '04d': 'cloud',              // Nublado
+        '09d': 'rainy',              // Llovizna
+        '10d': 'water_drop',         // Lluvia
+        '11d': 'thunderstorm',       // Tormenta
+        '13d': 'ac_unit',            // Nieve
+        '50d': 'mist',               // Neblina
+        
+        //iconos de noche
+        '01n': 'bedtime',            // Despejado noche
+        '02n': 'nights_stay',        // Pocas nubes noche
+        '03n': 'cloud',
+        '04n': 'cloud',
+        '09n': 'rainy',
+        '10n': 'water_drop',
+        '11n': 'thunderstorm',
+        '13n': 'ac_unit',
+        '50n': 'mist',
+    };
+    return iconMap[code] || 'partly_cloudy_day';
+};
+
 
 
 function WeatherPage() {
-    // Estados de carga
-    const [weatherData, setWeatherData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    
+    const { data: weatherData, loading: weatherLoading, error: weatherError } = useWeather('Osorno');
 
-    //estado y ubicacion
-    const [location] = useState({
-        lat: -40.57395,
-        lon: -73.13348,
-        name: 'Osorno, Chile'
-    });
-    // carga de datoss
-    useEffect(() => {
-        const fetchWeather = async () => {
-            setLoading(true);
-            setError(null);
-            
-            try {
-                // Llamada a tu endpoint /api/weather/complete
-                const data = await weatherAPI.getCompleteWeather(
-                    location.lat,
-                    location.lon,
-                    location.name
-                );
-
-                // 'data' contendrá { current, forecast, location, etc. }
-                setWeatherData(data);
-            } catch (err) {
-                console.error("Error al obtener el clima:", err);
-                setError('No se pudo cargar el clima. Verifica el backend y la API Key.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchWeather();
-    }, [location.lat, location.lon, location.name]);
-
-// condicional en caso de haber recuperado los datos
-    if (loading) {
-        return (
-            <div className="relative flex min-h-screen w-full flex-col justify-center items-center">
-                <p className="text-xl font-medium text-text-light dark:text-text-dark">
-                    Cargando clima para {location.name}...
-                </p>
-            </div>
-        );
-    }
-    // en caso de no encontrarlos
-    if (error || !weatherData || !weatherData.current || !weatherData.forecast) {
-        return (
-            <div className="relative flex min-h-screen w-full flex-col justify-center items-center">
-                <p className="text-lg font-bold text-danger dark:text-danger/70">
-                    {error || "Error: Datos de clima incompletos o falló la conexión."}
-                </p>
-            </div>
-        );
-    }
-
-    const current = weatherData.current;
-    const forecast = weatherData.forecast;
-
-    // --- Datos para CurrentWeatherCard ---
-    const mainTemp = current.temperature + '°C';
-    const description = current.conditions.charAt(0).toUpperCase() + current.conditions.slice(1);
-    const cityDisplay = current.location || current.name; // Usar location del servicio
-
-    // --- Datos para la barra lateral (Detalles) ---
-    const sidebarDetails = [
-        { label: "Sensación Térmica", value: current.feels_like + '°C' },
-        { label: "Humedad", value: current.humidity + '%' },
-        { label: "Presión Atmosférica", value: current.pressure + ' hPa' },
-        { label: "Amanecer", value: current.sunrise },
-        { label: "Atardecer", value: current.sunset },
-    ];
-
-
+    const processedWeather = weatherData && !weatherError && weatherData.list ?{
+        city: weatherData.city ? weatherData.city.name : 'N/A',
+        temperature: Math.round(weatherData.list[0].main.temp),
+        condition: weatherData.list[0].weather[0].description,
+        iconName: getWeatherIcon(weatherData.list[0].weather[0].icon),
+        humidity: weatherData.list[0].main.humidity,
+        wind: weatherData.list[0].wind.speed,
+        forecast: getDailyForecast(weatherData.list)
+    } : null;
     return (
         <div className="relative flex min-h-screen w-full flex-col">
             <Header /> 
@@ -112,13 +107,32 @@ function WeatherPage() {
                 {/* Columna Principal*/}
                 <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
                     
-                    {/*  Tarjeta Principal de Clima */}
-                    <CurrentWeatherCard 
-                        temp={mainTemp}
-                        description={description}
-                        city={cityDisplay}
-                        imageUrl={`https://source.unsplash.com/random/800x600?weather,${current.conditions_main}`}
-                    />
+                       {weatherLoading ? (
+                        // 1. Estado de Carga
+                        <div className="p-6 mb-6 text-center text-gray-500 border border-dashed border-gray-300 rounded-xl">
+                            <span className="material-symbols-outlined animate-spin text-xl mr-2 align-middle">refresh</span>
+                            <span className="align-middle">Cargando datos del clima...</span>
+                        </div>
+                    ) : weatherError ? (
+                        // 2. Estado de Error (Nuevo)
+                        <div className="p-6 mb-6 text-center text-red-600 bg-red-50 border border-red-200 rounded-xl">
+                            <p className="font-bold flex items-center justify-center gap-2">
+                                <span className="material-symbols-outlined">warning</span>
+                                No se pudo cargar el clima
+                            </p>
+                            <p className="text-sm mt-1">Verifica tu API Key o la conexión.</p>
+                        </div>
+                    ) : processedWeather ? (
+                        // 3. Estado de Éxito (Mostrar Widget)
+                        <WeatherWidget 
+                            city={processedWeather.city}
+                            temperature={processedWeather.temperature}
+                            condition={processedWeather.condition}
+                            humidity={processedWeather.humidity}
+                            wind={processedWeather.wind}
+                            iconName={processedWeather.iconName}
+                        />
+                    ) : null}
 
                     {/* Alerta de Clima  */}
                     <div className="bg-warning/20 dark:bg-warning/30 border-l-4 border-warning text-warning-dark dark:text-warning-light p-4 rounded-r-lg" role="alert">
@@ -132,7 +146,7 @@ function WeatherPage() {
                     </div>
 
                     {/* 5.3 Pronóstico por Hora */}
-                    <HourlyForecastWidget hourlyData = {weatherData.forecast}/>
+                    <HourlyForecastWidget hourlyData = {processedWeather.forecast}/>
 
                     {/* 5.4 Detalles del Pronóstico (Hora Seleccionada) */}
                     <div className="bg-card-light dark:bg-card-dark rounded-lg shadow-sm p-4">

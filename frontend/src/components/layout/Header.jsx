@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 //Import Componentes
 import MisCultivosPage from '../../pages/MisCultivosPages/MisCultivosPage';
 import Inicio from '../../pages/Inicio';
+import WeatherPage from '../../pages/WeatherPage';
 
 
 const NavLink = ({ href, children }) => (
@@ -29,7 +30,7 @@ function Header() {
         <Link to="/" element={<Inicio/>} >Inicio</Link>
         <Link to="/cultivos" element={<MisCultivosPage/>}>Mis Cultivos</Link>
         <Link to="#" >Estadísticas</Link>
-        <Link to="#" >Clima</Link>
+        <Link to="/clima" element ={<WeatherPage/>} >Clima</Link>
         <Link to="/notas" className="...">Notas</Link>
       </nav>
       

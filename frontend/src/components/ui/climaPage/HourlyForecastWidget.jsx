@@ -2,11 +2,10 @@
 
 import React, { useState } from 'react';
 import HourlyForecastItem from './HourlyForecastItem'; 
-import { getWeatherEmoji } from '../../services/weatherAPI';
 
 
 
-function HourlyForecastWidget({forecastData}) {
+function HourlyForecastWidget({processedHours}) {
     const [selectedHourId, setSelectedHourId] = useState(1);
     
     const processedHours = forecastData ? forecastData.list.slice(0,8).map((item,index)=>{
