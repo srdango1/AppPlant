@@ -1,19 +1,19 @@
+//src/pages/CultivosDetalle.jsx
 import React from "react";
 import EstadisticasCard from "../../components/ui/EstadisticasCard";
 import ChartCard from "../../components/ui/GraficosCard";
 import DetailsSidebar from "../../components/layout/CultivosSideBar";
 
-// Array de datos simulados para ver si funciona
-
+// --- MOCKS DE DATOS (Simulación de histórico de sensores) ---
+// Estos objetos simulan la respuesta que daría una API de análisis de datos.
+// Estructurados para alimentar directamente al componente ChartCard.
 const TEMPERATURA_HISTORIAL = {
-    // Datos de la cabecera del ChartCard
     title: "Temperatura",
     value: "24°C",
     time: "Últimos 7 días",
     summary: "+1.5°C",
     colorClass: "text-[#078827]", 
     
-    // Array de datos históricos para el LineChart
     chartData: [
         { day: 'Lun', value: 22.5 },
         { day: 'Mar', value: 24.1 },
@@ -26,11 +26,11 @@ const TEMPERATURA_HISTORIAL = {
 };
 const HUMEDAD_HISTORIAL = {
     title: "Humedad",
-    value: "40%", // Valor bajo
+    value: "40%", 
     time: "Últimos 7 días",
-    summary: "-10%", // Simula una caída significativa (Alerta)
-    colorClass: "text-[#e72608]", // Clase de texto rojo/alerta
-    
+    summary: "-10%", 
+    colorClass: "text-[#e72608]", 
+
     chartData: [
         { day: 'Lun', value: 65 },
         { day: 'Mar', value: 60 },
@@ -109,10 +109,16 @@ const SENSOR_STATS = [
     },
 ];
 
+/**
+ * Página de Detalle de Cultivo.
+ * Muestra un dashboard analítico con KPIs en tiempo real y gráficos históricos.
+ * Integra una barra lateral de acciones rápidas.
+ */
 function CultivosDetalle(){
     return(
-        <div className="flex flex-1">
-            <main className="flex-1 p-8">
+        <div className="flex flex-1 flex-col lg:flex-row min-h-screen">
+            <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+                {/* Sección de Tarjetas KPI (Indicadores Clave) */}
         <div className="flex flex-wrap gap-4 p-4">
             {SENSOR_STATS.map((stat,index) =>(
                 <EstadisticasCard
@@ -124,6 +130,7 @@ function CultivosDetalle(){
                 />
             ))}
         </div>
+        {/* Sección de Gráficos Históricos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4">
             {All_chart_Data.map((chartData, index) => (
                 <ChartCard
@@ -133,6 +140,7 @@ function CultivosDetalle(){
             ))}
         </div>
         </main>
+        {/* Barra lateral de control y alertas */}
            <DetailsSidebar/> 
         </div>
 

@@ -1,3 +1,4 @@
+//src/pages/Inicio
 import React, { useState, useEffect } from "react";
 import { Link } from 'react-router-dom';
 
@@ -11,7 +12,12 @@ import { formatWeatherData } from "../utils/utilsWeather";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Función para asignar imágenes visuales basadas en la planta
+/**
+ * Helper para determinar la imagen de fondo de la tarjeta de cultivo
+ * Mapea el tipo de planta en ingles a una URL de imagen estatica predefinida
+ * @param {Array} plantas - Array de objetos planta asociados al cultivo.
+ * @returns {string} URL de la imagen a mostrar. Retorna una imagen por defecto si no hay coincidencias.
+ */
 const getVisualImageUrl = (plantas) => {
     if (!plantas || plantas.length === 0) {
         return 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3'; 
@@ -27,22 +33,32 @@ const getVisualImageUrl = (plantas) => {
     };
     return plantImageMap[firstPlant] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3';
 };
+/**
+ * Componente de la página principal | Dashboard
+ * Actúa como controlador principal que :
+ * 1. Consume  el hook de Clima useWeather
+ * 2. Realiza peticiones HTTP para obtener los cultivos del usuario.
+ * 3. Escucha eventos globales para recargar datos de forma dinamica
+ * 4. Orquesta la visualización de widgets y estadísticas. 
+ */
 
 function Inicio() {
-
+    // Estado para almacenar la lista de cultivos del usuario
     const [cultivos, setCultivos] = useState([]);
-    
+    // Estado para las estadísticas rápidas
     const [stats, setStats] = useState({
         humedad: "0%",
         temperatura: "0°C",
         agua: "0%",
         luz: "0%"
     });
-
-    // Hook del clima
+    //Consumo del custom hook para obtener datos meteorologicos de Osorno
     const { data: weatherData, loading: weatherLoading, error: weatherError } = useWeather('Osorno');
     
-    // Fetch de Cultivos
+    /**
+     * Effect: carga inicial de datos de cultivos desde el backend
+     * Se ejecuta una sola vez al montar el componente
+     */
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -50,7 +66,7 @@ function Inicio() {
                 if (response.ok) {
                     const data = await response.json();
                     setCultivos(data);
-
+                    // Inicialización de stats con simulación de datos de sensores
                     if (data.length > 0) {
                         setStats({
                             humedad: "0%",
@@ -67,13 +83,18 @@ function Inicio() {
         fetchData();
     }, []);
 
-    // Listener de eventos
+    /**
+     * Effect: eventos globales
+     * Escucha el evento personalizado 'cultivoActualizado' que es disparado por el chatbox o modales
+     * para refrescar la lista de cultivos sin recargar la página.
+     */
     useEffect(() => {
         const handleRecargar = () => {
              fetch(`${API_BASE_URL}/cultivos`)
                 .then(res => res.json())
                 .then(data => {
                     setCultivos(data);
+                    //Actualización simulada de sensores al detectar cambios
                     if (data.length > 0) {
                         setStats({
                             humedad: "65%", temperatura: "24°C", agua: "80%", luz: "75%"
@@ -84,10 +105,11 @@ function Inicio() {
         };
 
         window.addEventListener('cultivoActualizado', handleRecargar);
+        //Cleanup: Es necesario quitar el listener al desmontar para evitar fugas de memoria
         return () => window.removeEventListener('cultivoActualizado', handleRecargar);
     }, []);
 
-
+    //Prosamiento de datos crudos de la API de clima usando la utilidad centralizada
     const processedWeather = formatWeatherData(weatherData, weatherError);
 
     

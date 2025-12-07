@@ -1,8 +1,18 @@
+//src/componentes/ui/inicionPage/weatherWidget.jsx
 import React from 'react';
+/**
+ * Componente de presentación para mostrar el estado actual del clima.
+ * @param {string|number} temperature - Temperatura actual
+ * @param {string} condition - Descripción textual 
+ * @param {string} iconName - Nombre del icono de Google Material Symbols
+ * @param {string} city - Nombre de la ciudad
+ * @param {string|number} humidity - Porcentaje de humedad
+ * @param {string|number} wind - Velocidad del viento 
+ */
 
 function WeatherWidget({ temperature, condition, iconName, city, humidity, wind }) {
   
-  // Estado de carga / sin datos
+  // Renderizado condicional :  Estado de fallback si no llegan los datos
   if (!temperature) {
     return (
       <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-gray-700">
@@ -33,10 +43,7 @@ function WeatherWidget({ temperature, condition, iconName, city, humidity, wind 
               {iconName}
             </span>
             
-            {/* Temperatura: 
-                leading-none = Quita el espacio extra arriba/abajo
-                mt-2 = Un pequeño ajuste óptico si la fuente de números "sube" mucho
-            */}
+            {/* Temperatura con ajuste de interlineado (leading-none) para alineación vertical*/}
             <p className="text-6xl font-bold text-gray-900 dark:text-white leading-none">
               {temperature}°C
             </p>

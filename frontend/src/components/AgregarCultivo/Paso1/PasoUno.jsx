@@ -1,16 +1,25 @@
+//src/componentes/AgregarCultvo/Paso1/PasoUno.jsx
 import React from 'react';
 
+/**
+ * Primer paso del Asistente de Creación de Cultivo (Wizard).
+ * Captura la información básica: Nombre y Ubicación.
+ * * @param {Function} onNext - Callback para avanzar al siguiente paso.
+ * @param {Function} onCancel - Callback para cancelar el proceso.
+ * @param {Object} data - Estado global del formulario del wizard.
+ * @param {Function} setData - Función para actualizar el estado global.
+ */
 function PasoUno({ onNext, onCancel, data, setData }) {
   
-  // Función para manejar cambios en los inputs
+  // Manejador de evento para el input de texto
   const handleChange = (e) => {
     setData({
-      ...data, // Mantiene los datos de otros pasos
-      nombre: e.target.value // Actualiza solo el nombre
+      ...data, // Patrón inmutable: copia el estado anterior
+      nombre: e.target.value // Sobrescribe solo la propiedad modificada
     });
   };
 
-  // Función para manejar el clic en la ubicación
+  // Manejador para los botones de selección de ubicación
   const handleLocationClick = (location) => {
     setData({
       ...data,

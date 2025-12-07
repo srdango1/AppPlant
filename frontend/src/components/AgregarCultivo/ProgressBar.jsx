@@ -1,6 +1,14 @@
+//src/components/AgregarCultivo/ProgressBar.jsx
 import React from 'react';
 
+/**
+ * Barra de Progreso Visual para el Wizard.
+ * Indica al usuario en qué etapa del proceso se encuentra.
+ * * @param {number} currentStep - El número del paso actual (1-based).
+ * @param {number} totalSteps - El número total de pasos (por defecto 4).
+ */
 function ProgressBar({ currentStep, totalSteps = 4 }) {
+  // Cálculo del porcentaje de completitud
   const progressPercentage = (currentStep / totalSteps) * 100;
   
   return (

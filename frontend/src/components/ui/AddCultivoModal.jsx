@@ -1,16 +1,34 @@
+//src/components/modals/AddCultivoModal.jsx
 import React, { useState } from 'react';
 import Button from '../common/Button';
 
-// Obtenemos la URL del backend desde las variables de entorno de Vite
+// Configuración de la URL base del API Gateway
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+/**
+ * Modal con formulario para registrar un nuevo cultivo.
+ * Gestiona el ciclo completo de creación: 
+ * 1. Captura de datos (Estado local).
+ * 2. Envío a la API (POST request).
+ * 3. Notificación al componente padre (Callback).
+ * * @param {boolean} isOpen - Controla la visibilidad del modal.
+ * @param {Function} onClose - Función para cerrar el modal.
+ * @param {Function} onCultivoAdded - Callback para actualizar la lista en el componente padre sin recargar.
+ */
 function AddCultivoModal({ isOpen, onClose, onCultivoAdded }) {
+    // Gestión de estado del formulario
     const [name, setName] = useState('');
     const [location, setLocation] = useState('');
     const [imageUrl, setImageUrl] = useState('');
+
+    // Gestión de estado de UI (Carga y Error)
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    /**
+     * Maneja el envío del formulario.
+     * Realiza la petición asíncrona y gestiona los posibles errores de red o validación.
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
@@ -27,11 +45,12 @@ function AddCultivoModal({ isOpen, onClose, onCultivoAdded }) {
                 const errData = await response.json();
                 throw new Error(errData.detail || 'No se pudo crear el cultivo');
             }
-
+            
             const newCultivo = await response.json();
+            // Comunicación con el padre: pasamos el objeto creado
             onCultivoAdded(newCultivo); // ⬅️ Envía el nuevo cultivo a la página principal
             
-            // Limpiar formulario y cerrar modal
+            // Limpieza y cierre modal
             setName('');
             setLocation('');
             setImageUrl('');
@@ -43,10 +62,10 @@ function AddCultivoModal({ isOpen, onClose, onCultivoAdded }) {
             setIsLoading(false);
         }
     };
-
+    // Renderizado condicional del modal (Si está cerrado, no renderiza nada)
     if (!isOpen) return null;
 
-    // Estilos del Modal (CSS en línea para simplicidad)
+// Estilos inline para el modal (Simplificación para prototipado rápido)
     const modalStyle = {
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -64,6 +83,7 @@ function AddCultivoModal({ isOpen, onClose, onCultivoAdded }) {
 
     return (
         <div style={modalStyle} onClick={onClose}>
+            {/* stopPropagation evita que el click dentro del modal lo cierre */}
             <div style={contentStyle} onClick={e => e.stopPropagation()}>
                 <h2 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 'bold' }}>Añadir Nuevo Cultivo</h2>
                 

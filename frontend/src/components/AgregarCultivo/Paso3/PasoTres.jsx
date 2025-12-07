@@ -1,7 +1,9 @@
+//src/components/AgregarCultivo/Paso3/PasoTres.jsx
 import React, { useState, useEffect } from 'react';
 import SensorStatusItem from './SensorStatus';
 import { Link } from 'react-router-dom';
 
+// Estado inicial simulado de los sensores
 const INITIAL_SENSORS = [
     { id: 'humedad', name: 'Sensor de Humedad del Suelo', status: 'Conectando...', detail: '' },
     { id: 'temp', name: 'Sensor de Temperatura/Humedad', status: 'Conectando...', detail: '' },
@@ -10,13 +12,23 @@ const INITIAL_SENSORS = [
 
 const SIMULATED_DEVICE_ID = 'arduino_uno_balcon_82A4';
 
+/**
+ * Tercer paso del proceso: Conexión de Dispositivos (IoT).
+ * Simula el proceso de descubrimiento y vinculación de sensores físicos
+ * utilizando timeouts para emular la latencia de la red local.
+ */
 function StepThreeDeviceConnect({ onNext, onBack, data, setData }) {
   const [sensors, setSensors] = useState(INITIAL_SENSORS);
   
+  /**
+   * Effect: Simulación del proceso de "Handshake" con el dispositivo.
+   * Después de 2 segundos, cambia el estado de los sensores a "Conectado".
+   */
   useEffect(() => {
     const timer = setTimeout(() => {
+      // Actualizamos estado visual de los sensores
       setSensors(prev => prev.map(s => ({ ...s, status: 'Conectado' })));
-      
+      // Guardamos el ID del dispositivo en el estado global del formulario
       setData(prevData => ({
         ...prevData,
         deviceId: SIMULATED_DEVICE_ID 
@@ -27,6 +39,7 @@ function StepThreeDeviceConnect({ onNext, onBack, data, setData }) {
     return () => clearTimeout(timer);
   }, [setData]);
   
+  // Validación: Solo se puede avanzar si todos los sensores están OK
   const canProceed = sensors.every(s => s.status === 'Conectado');
   
   return (

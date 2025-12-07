@@ -1,9 +1,11 @@
+//src/components/layout/CultivosSideBar.jsx
 import React from 'react';
 import SidebarSection from '../common/SideBarSection';
 import ActionButton from '../common/ActionButton'; 
 import AlertItem from '../ui/AlertItem'; 
 import NoteItem from '../ui/NotesItem';  
 // --- DATOS EN DURO (MOCKS) ---
+// Simulación de datos que vendrían de la API de eventos/notificaciones
 
 const QUICK_ACTIONS = [
     { icon: 'water_drop', label: 'Regar', handler: () => alert('Regando...') },
@@ -28,7 +30,10 @@ const TAREAS = [
     { text: 'Próxima cosecha: 15/06', icon: 'calendar_today' }
 ];
 
-
+/**
+ * Barra lateral de detalles para la vista de un cultivo específico.
+ * Agrupa funcionalidades operativas (regar), informativas (alertas) y de bitácora (notas).
+ */
 const DetailsSidebar = () => {
     
     return (
@@ -47,7 +52,7 @@ const DetailsSidebar = () => {
                     ))}
                 </SidebarSection>
                 
-                {/* SECCIÓN 2: ALERTAS */}
+                {/* SECCIÓN 2: ALERTAS CRÍTICAS */}
                 <SidebarSection title="Alertas">
                     {ALERTAS.map((alert, index) => (
                         <AlertItem 
@@ -60,7 +65,7 @@ const DetailsSidebar = () => {
                     ))}
                 </SidebarSection>
 
-                {/* SECCIÓN 3: NOTAS */}
+                {/* SECCIÓN 3: NOTAS | BITÁCORA */}
                 <SidebarSection title="Notas">
                     {NOTAS.map((note, index) => (
                         <NoteItem 
@@ -71,14 +76,13 @@ const DetailsSidebar = () => {
                     ))}
                 </SidebarSection>
                 
-                {/* SECCIÓN 4: TAREAS (Usamos un ActionButton simple o creamos un TaskItem si la lógica crece) */}
+                {/* SECCIÓN 4: TAREAS  */}
                 <SidebarSection title="Tareas">
                     {TAREAS.map((task, index) => (
                         <ActionButton 
                             key={index} 
                             icon={task.icon} 
                             label={task.text} 
-                            // Sin handler, ya que es solo informativo
                             onClick={() => console.log('Ver calendario')} 
                         />
                     ))}

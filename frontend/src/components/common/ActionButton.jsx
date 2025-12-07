@@ -1,6 +1,14 @@
+//src/components/common/ActionButton.jsx
 import React from 'react';
 
-// Recibe el nombre del icono (icon), la etiqueta (label) y la acción (onClick)
+/**
+ * Botón de Acción Rápida (Quick Action).
+ * Componente atómico utilizado en barras laterales y paneles de control 
+ * para ejecutar funciones específicas (ej: Regar, Tomar Foto).
+ * * * @param {string} icon - Nombre del icono de Material Symbols (ej: "water_drop").
+ * @param {string} label - Texto descriptivo de la acción.
+ * @param {Function} onClick - Función manejadora del evento click.
+ */
 const ActionButton = ({ icon, label, onClick }) => {
     return (
         <button 

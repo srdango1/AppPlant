@@ -1,7 +1,17 @@
+//src/components/AgregarCultivo/Paso2/SeleccionCultivo.jsx
 import React from 'react';
 
+/**
+ * Tarjeta de selección de planta individual.
+ * Componente visual interactivo que permite seleccionar un ítem de una grilla.
+ * * @param {string} emoji - Emoji representativo de la planta.
+ * @param {string} name - Nombre de la planta.
+ * @param {boolean} isSelected - Estado visual de selección (borde y check).
+ * @param {Function} onSelect - Manejador de clic.
+ */
 function PlantSelectionCard({ emoji, name, isSelected, onSelect }) {
   
+  // Clases base y estados condicionales para interacción y selección
   const baseClasses = "group relative cursor-pointer rounded-xl transition-all duration-300 bg-card-light dark:bg-card-dark shadow-md hover:shadow-xl flex flex-col items-center p-4";
   const selectedClasses = isSelected 
     ? "border-2 border-primary shadow-xl ring-2 ring-primary/50" 

@@ -1,12 +1,23 @@
+//src/components/common/graficos.jsx
 import React from "react";
 
-
+/**
+ * Componente de Gráfico de Línea (LineChart).
+ * Renderiza una visualización SVG de datos históricos.
+ * Actualmente configurado con una curva SVG estática para propósitos de prototipado,
+ * pero con ejes y colores dinámicos.
+ * * * @param {Array} data - Array de objetos con los valores numéricos a graficar (futura implementación dinámica).
+ * @param {Array<string>} labels - Etiquetas del eje X (ej: ["Lun", "Mar", ...]).
+ * @param {string} [color='#24e04d'] - Color principal de la línea y el gradiente (Hex o nombre).
+ * @param {string} [fillOpacity='0.2'] - Opacidad del área bajo la curva.
+ */
 const LineChart = ({ data, labels, color = '#24e04d', fillOpacity = '0.2' }) => {
     
-    // Si no se pasan labels, usamos un array por defecto para evitar errores
+    // Validación defensiva: Si no hay etiquetas, usamos días de la semana por defecto
     const defaultLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const currentLabels = labels && labels.length > 0 ? labels : defaultLabels;
 
+    // Renderizado del SVG estático con inyección dinámica de color y gradientes
     const StaticSvg = (
         <svg fill="none" height="148" preserveAspectRatio="none" viewBox="-3 0 478 150" width="100%" xmlns="http://www.w3.org/2000/svg">
             
@@ -37,7 +48,7 @@ const LineChart = ({ data, labels, color = '#24e04d', fillOpacity = '0.2' }) => 
                         key={index}
                         className="text-[13px] font-bold leading-normal tracking-[0.015em] text-[#64876b] dark:text-gray-400"
                     >
-                        {label} {/* ⬅️ Aquí se muestra el día */}
+                        {label}
                     </p>
                 ))}
             </div>

@@ -1,7 +1,16 @@
+//src/components/AgregarCultivo/Paso3/SensorStatus.jsx
 import React from 'react';
 
+/**
+ * Componente de fila para mostrar el estado de conexión de un sensor IoT.
+ * Mapea estados de texto a iconos y colores semánticos.
+ * * @param {string} name - Nombre del sensor (ej: "Humedad").
+ * @param {string} status - Estado actual ("Conectando...", "Conectado", "Error").
+ * @param {string} detail - Mensaje de error opcional.
+ */
 function SensorStatusItem({ name, status, detail }) {
   
+  // Lógica de visualización condicional
   let icon = '';
   let colorClass = '';
   let animate = '';

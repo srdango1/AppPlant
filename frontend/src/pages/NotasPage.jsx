@@ -1,3 +1,4 @@
+//src/pages/NotasPage.jsx
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
@@ -7,7 +8,7 @@ import Button from '../components/common/Button';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// Mismos colores que en el modal para mantener consistencia
+// Configuración de colores disponible para las notas (Coherencia visual)
 const COLORS = [
     { id: 'white', class: 'bg-white', border: 'border-gray-200' },
     { id: 'yellow', class: 'bg-yellow-50', border: 'border-yellow-200' },
@@ -17,9 +18,18 @@ const COLORS = [
     { id: 'red', class: 'bg-red-50', border: 'border-red-200' },
 ];
 
+/**
+ * Página de Gestión de Notas (Bitácora).
+ * Funcionalidades principales:
+ * 1. Visualización de calendario interactivo.
+ * 2. Filtrado de notas por fecha (Sincronizado con URL Query Params).
+ * 3. CRUD completo de notas (Crear, Leer, Eliminar).
+ */
 function NotasPage() {
+    // Hook para manipular la URL (?date=2024-05-24) y permitir compartir enlaces directos a un día
     const [searchParams, setSearchParams] = useSearchParams();
     
+    // Inicialización de fecha basada en URL o fecha actual
     const urlDate = searchParams.get('date');
     const initialDate = urlDate ? parseISO(urlDate) : new Date();
     
@@ -27,15 +37,19 @@ function NotasPage() {
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(false);
     
-    // Estados para nueva nota
+    // Estados para el formulario de creación rápida
     const [newNoteTitle, setNewNoteTitle] = useState("");
     const [newNoteContent, setNewNoteContent] = useState("");
     const [newNoteColor, setNewNoteColor] = useState(COLORS[0]); // Color por defecto (blanco)
     const [isCreating, setIsCreating] = useState(false);
 
+    // Formateo de fechas para API (YYYY-MM-DD) y Visualización 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
     const displayDate = format(selectedDate, "EEEE, d 'de' MMMM, yyyy", { locale: es });
 
+    /**
+     * Effect: Carga las notas y actualiza la URL cada vez que el usuario selecciona un día en el calendario.
+     */
     useEffect(() => {
         fetchNotes();
         setSearchParams({ date: dateStr });
@@ -56,6 +70,10 @@ function NotasPage() {
         }
     };
 
+    /**
+     * Maneja la creación de notas (POST).
+     * Dispara evento global para que el calendario actualice los puntos de colores.
+     */
     const handleCreateNote = async (e) => {
         e.preventDefault();
         if (!newNoteTitle.trim() && !newNoteContent.trim()) return;
@@ -114,7 +132,7 @@ function NotasPage() {
                 
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
                     <p className="text-sm text-blue-800 dark:text-blue-200 text-center">
-                        📅 Selecciona un día para ver tu bitácora.
+                         Selecciona un día para ver tu bitácora.
                     </p>
                 </div>
             </aside>

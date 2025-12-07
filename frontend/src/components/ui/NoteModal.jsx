@@ -1,8 +1,10 @@
+//src/components/modals/NoteModal.jsx
 import React, { useState, useEffect } from 'react';
 import Button from '../common/Button';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// Configuración de paleta de colores para las notas
 const COLORS = [
     { id: 'white', class: 'bg-white', border: 'border-gray-200' },
     { id: 'yellow', class: 'bg-yellow-50', border: 'border-yellow-200' },
@@ -11,30 +13,41 @@ const COLORS = [
     { id: 'red', class: 'bg-red-50', border: 'border-red-200' },
 ];
 
+/**
+ * Modal de gestión de Notas Diarias (Bitácora).
+ * Implementa funcionalidades CRUD completas (Crear, Leer, Eliminar) para una fecha específica.
+ * Sincroniza cambios con el calendario mediante eventos personalizados.
+ * * @param {boolean} isOpen - Estado de visibilidad.
+ * @param {Function} onClose - Función de cierre.
+ * @param {Date} date - Objeto Date correspondiente al día seleccionado.
+ */
 function NoteModal({ isOpen, onClose, date }) {
     const [notes, setNotes] = useState([]);
     const [loading, setLoading] = useState(false);
     
-    // Formulario
+    // Estado del formulario de creación
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
 
-    // Formatear fecha para la API y visualización
+    // Helpers de formateo de fecha
     const dateStr = date ? date.toISOString().split('T')[0] : '';
     const displayDate = date ? date.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
 
-    // Cargar notas cuando se abre el modal
+    /**
+     * Effect: Carga las notas cada vez que se abre el modal o cambia la fecha seleccionada.
+     */
     useEffect(() => {
         if (isOpen && date) {
             fetchNotes();
-            // Resetear formulario
+            // Resetear campos del formulario
             setTitle('');
             setContent('');
             setSelectedColor(COLORS[0]);
         }
     }, [isOpen, date]);
 
+    // Función GET para obtener notas del backend
     const fetchNotes = async () => {
         setLoading(true);
         try {
@@ -50,6 +63,10 @@ function NoteModal({ isOpen, onClose, date }) {
         }
     };
 
+    /**
+     * Maneja la creación de una nueva nota (POST).
+     * Dispara el evento 'cultivoActualizado' para que el calendario pinte el punto de color.
+     */
     const handleSave = async (e) => {
         e.preventDefault();
         if (!title.trim() && !content.trim()) return;
@@ -62,25 +79,28 @@ function NoteModal({ isOpen, onClose, date }) {
                     title: title || "Nota rápida",
                     content: content,
                     date: dateStr,
-                    color: selectedColor.class // Guardamos el color
+                    color: selectedColor.class // PErsistencia del color
                 })
             });
             
-            // Limpiar y recargar lista
+            // UX: Limpiar formulario y recargar lista inmediata
             setTitle('');
             setContent('');
             fetchNotes();
-            // Avisar al calendario para que ponga el puntito
+
+            // Sincronización Global: Notificar al calendario para actualizar indicadores visuales
             window.dispatchEvent(new CustomEvent('cultivoActualizado'));
         } catch (error) {
             console.error(error);
         }
     };
 
+    // Función DELETE para eliminar notas
     const handleDelete = async (id) => {
         if(!confirm("¿Borrar?")) return;
         await fetch(`${API_BASE_URL}/notes/${id}`, { method: 'DELETE' });
         fetchNotes();
+        // Notificamos también al borrar, por si era la última nota del día (para quitar el punto)
         window.dispatchEvent(new CustomEvent('cultivoActualizado'));
     };
 

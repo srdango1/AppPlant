@@ -1,3 +1,4 @@
+// src/components/layout/MiniCalendar.jsx
 import React, { useState, useEffect } from "react";
 import { DayPicker } from 'react-day-picker';
 import { es } from "date-fns/locale";
@@ -7,8 +8,11 @@ import NoteModal from "../NoteModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-// --- 1. MAPA DE COLORES ---
-// Convierte el color de fondo de la nota (suave) al color del puntito (fuerte)
+/**
+ * Helper para mapear clases de color de Tailwind a colores de indicadores.
+ * Convierte un fondo suave en un color sólido
+ * @param {string} noteColorClass - Clase de color de la nota.
+ */
 const getDotColor = (noteColorClass) => {
     if (!noteColorClass) return null;
     if (noteColorClass.includes('red')) return 'bg-red-500';
@@ -19,22 +23,35 @@ const getDotColor = (noteColorClass) => {
     return 'bg-gray-400'; // Default para notas blancas
 };
 
+/**
+ * Componente de Calendario Interactivo
+ * Funcionalidades:
+ * 1. Muestra un calendario mensual.
+ * 2. Carga noas desde la API y marca los días con puntos de colores.
+ * 3. Permite seleccionar una fecha para abrir un modal de creación/edición de notas.
+ * @param {Function} onDateSelect - Callback opcional para cunado se selecciona una fecha usado en vista de agenda 
+ * @param {Date} selectedDate - Fecha pre-seleccionada opcional. 
+ */
 function MiniCalendar({ onDateSelect, selectedDate }) {
     const [selected, setSelected] = useState(selectedDate || new Date());
-    const [notesMap, setNotesMap] = useState({}); // Guardamos fecha -> color
+    const [notesMap, setNotesMap] = useState({}); // Diccionario: {"YYYY-MM-DD": "bg-color-500"}
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // --- 2. CARGAR Y PROCESAR NOTAS ---
+    /**
+     * Obtiene las notas desde el backend y procesa los colores para el calendario
+     */
     const fetchNotes = async () => {
         try {
             const response = await fetch(`${API_BASE_URL}/notes`);
             if (response.ok) {
                 const data = await response.json();
                 
-                // Creamos un diccionario: { "2025-12-06": "bg-red-500", ... }
+                /**
+                 * Transformación de Array a Objeto para búsqueda rápida 0(1) al renderizar días
+                 */
                 const newMap = {};
                 data.forEach(note => {
-                    // Si hay varias notas un día, el color de la última sobrescribe (o podrías lógica más compleja)
+                    // Si hay varias notas un día, el color de la última sobrescribe
                     if (note.date) {
                         newMap[note.date] = getDotColor(note.color);
                     }
@@ -45,13 +62,13 @@ function MiniCalendar({ onDateSelect, selectedDate }) {
             console.error("Error cargando notas:", error);
         }
     };
-
+    // Carga inicial y suscripción a eventos de actualización
     useEffect(() => {
         fetchNotes();
         window.addEventListener('cultivoActualizado', fetchNotes);
         return () => window.removeEventListener('cultivoActualizado', fetchNotes);
     }, []);
-
+    // Sincronización con prop externa
     useEffect(() => {
         if (selectedDate) setSelected(selectedDate);
     }, [selectedDate]);
@@ -66,12 +83,14 @@ function MiniCalendar({ onDateSelect, selectedDate }) {
         }
     };
 
-    // --- 3. COMPONENTE PERSONALIZADO PARA EL DÍA ---
-    // Esto reemplaza el renderizado por defecto del número del día
+    /**
+     * Renderizador personlaizado para cada celda de día (Render Prop).
+     * Permite inyectar el indicador visual (punto de color) si existe una nota.
+     */
     function CustomDayContent(props) {
         const { date } = props;
         const dateStr = format(date, 'yyyy-MM-dd');
-        const dotColor = notesMap[dateStr]; // Buscamos si este día tiene color
+        const dotColor = notesMap[dateStr]; // Busqueda eficiente en el mapa
 
         return (
             <div className="relative flex items-center justify-center w-8 h-8">

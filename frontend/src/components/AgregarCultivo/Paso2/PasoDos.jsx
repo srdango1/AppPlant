@@ -1,3 +1,4 @@
+//src/components/AgregarCultivo/Paso2/PasoDos.jsx
 import React, { useState } from 'react';
 import PlantSelectionCard from './SeleccionCultivo';
 import FilterButton from './FiltroCategoria';
@@ -13,9 +14,22 @@ const ALL_PLANTS = [
     { id: 'pepper', emoji: '🫑', name: 'Pimientos', category: 'Hortalizas' },
 ];
 
+/**
+ * Segundo paso del Wizard: Selección de Plantas.
+ * Permite al usuario filtrar y elegir múltiples tipos de plantas para su cama de cultivo.
+ * * @param {Function} onNext - Callback para avanzar.
+ * @param {Function} onBack - Callback para retroceder.
+ * @param {Object} data - Estado del wizard.
+ * @param {Function} setData - Actualizador de estado.
+ */
 function StepTwoPlantSelection({ onNext, onBack, data, setData }) {
+  // Estado local para el filtro de categorías
   const [currentFilter, setCurrentFilter] = useState('Todos');
 
+  /**
+   * Maneja la lógica de selección/deselección múltiple (Toggle).
+   * Si la planta ya está en el array, la quita. Si no, la agrega.
+   */
   const handleSelectPlant = (plantId) => {
     const currentSelection = data.plantas || [];
     
@@ -32,6 +46,7 @@ function StepTwoPlantSelection({ onNext, onBack, data, setData }) {
     });
   };
 
+  // Filtrado de la lista de plantas según la categoría activa
   const filteredPlants = ALL_PLANTS.filter(plant => 
     currentFilter === 'Todos' || plant.category === currentFilter
   );

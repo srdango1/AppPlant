@@ -1,3 +1,4 @@
+//src/pages/AddCultivoPage/AddCultivoPage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,8 +12,18 @@ import PasoCuatro from '../../components/AgregarCultivo/Paso4/PasoCuatro';
 // Obtenemos la URL del backend desde las variables de entorno
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+/**
+ * Página controladora para el flujo de creación de cultivos (Wizard).
+ * Responsabilidades:
+ * 1. Gestionar el estado global del formulario (State Lifting) para que los datos persistan entre pasos.
+ * 2. Controlar la navegación secuencial (Paso 1 -> 2 -> 3 -> 4).
+ * 3. Realizar la petición final POST a la API.
+ */
 function AddCultivoPage() {
+    // Estado para controlar en qué paso se encuentra el usuario (1 a 4)
     const [currentStep, setCurrentStep] = useState(1);
+
+    // Estado acumulativo con todos los datos del nuevo cultivo
     const [formData, setFormData] = useState({
         nombre: '',
         ubicacion: '',
@@ -28,7 +39,10 @@ function AddCultivoPage() {
     const prevStep = () => setCurrentStep(prev => prev - 1);
     const handleCancel = () => navigate('/'); // Vuelve a la página principal
 
-    // Función para enviar el formulario final
+    /**
+     * Finaliza el proceso y envía los datos al servidor.
+     * Se ejecuta solo en el último paso (Paso 4).
+     */
     const handleFinish = async () => {
         setIsLoading(true);
         setError(null);
@@ -45,7 +59,7 @@ function AddCultivoPage() {
                 throw new Error(errData.detail || 'No se pudo crear el cultivo');
             }
             
-            // Dispara el evento global para que la página principal sepa que debe recargar
+            // Notificación Global: Avisamos a la app que hay nuevos datos para recargar listas
             window.dispatchEvent(new CustomEvent('cultivoActualizado'));
             
             navigate('/'); // Vuelve a la página principal
@@ -56,7 +70,10 @@ function AddCultivoPage() {
         }
     };
 
-    // Renderiza el componente del paso actual
+    /**
+     * Renderizado Condicional del paso actual.
+     * Actúa como un Router interno para intercambiar componentes manteniendo el estado.
+     */
     const renderStep = () => {
         switch (currentStep) {
             case 1:

@@ -1,11 +1,13 @@
+// src/components/ui/inicioPage/CultivationCard.jsx
 import React from 'react';
 
 /**
- * Componente para mostrar una cama de cultivo individual.
- * @param {string} name - Nombre de la cama (ej: "Cama de Tomates").
- * @param {string} status - Estado de la planta (ej: "Saludable").
- * @param {string} statusColor - Clase Tailwind para el color del círculo (ej: "bg-primary", "bg-yellow-400", "bg-red-500").
- * @param {string} imageUrl - URL de la imagen del cultivo.
+ * Componente visual para mostrar una cama de cultivo individual.
+ * Incluye imagen de fondo dinamica e indicador de estado por color
+ * @param {string} name - Nombre identificador de la cama (ej: "Cama de Tomates").
+ * @param {string} status - Texto del estado actual de la planta (ej: "Saludable").
+ * @param {string} statusColor - Clase Tailwind para el color del indicador (ej: "bg-primary", "bg-yellow-400", "bg-red-500").
+ * @param {string} imageUrl - URL de la imagen de fondo que representa el cultivo.
  * 
  * Es reutilizable por lo que obtiene la informacion desde main y la pone en los espacios para que aparezca todo
  */
@@ -20,7 +22,7 @@ function CultivationCard({ name, status, statusColor, imageUrl }) {
         style={{ backgroundImage: `url("${imageUrl}")` }}
       ></div>
       
-      {/* Detalles */}
+      {/* Detalles del estado */}
       <div className="p-4">
         <p className="text-base font-medium">{name}</p>
         <div className="flex items-center gap-2">

@@ -1,33 +1,49 @@
+//src/components/ui/ChatBot.jsx
 import React, { useState, useRef, useEffect } from 'react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+/**
+ * Asistente Virtual Flotante (Chatbot).
+ * Interfaz conversacional que permite al usuario interactuar con el sistema mediante lenguaje natural.
+ * Características:
+ * 1. Conexión con Backend de IA (`/chat`).
+ * 2. Auto-scroll inteligente a los mensajes nuevos.
+ * 3. Capacidad de trigger de acciones en el sistema (ej: crear cultivos por voz).
+ */
 function ChatBot() {
     const [isOpen, setIsOpen] = useState(false);
+    // Inicialización con mensaje de bienvenida
     const [messages, setMessages] = useState([
         { from: 'bot', text: '¡Hola! Soy PlantCare. ¿En qué puedo ayudarte hoy?' }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Referencia para el final del chat (Auto-scroll)
+    // Referencia DOM para el final de la lista de mensajes (Auto-scroll)
     const messagesEndRef = useRef(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // Ejecutar scroll cada vez que cambian los mensajes o se abre el chat
+    // Effect: Scrollear abajo cada vez que cambia el historial o se abre el chat
     useEffect(() => {
         scrollToBottom();
     }, [messages, isOpen]);
 
     const toggleChat = () => setIsOpen(!isOpen);
 
+    /**
+     * Maneja el envío de mensajes al bot.
+     * Añade el mensaje del usuario localmente, envía la petición a la API,
+     * y procesa la respuesta (texto y posibles acciones).
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (isLoading || !input.trim()) return;
 
+        // 1. Agregar mensaje de usuario
         const userMessage = { from: 'user', text: input };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
@@ -46,6 +62,8 @@ function ChatBot() {
             const botMessage = { from: 'bot', text: data.reply };
             setMessages(prev => [...prev, botMessage]);
 
+            // 2. Manejo de Efectos Secundarios (Action Trigger)
+            // Si la IA realiza una acción (ej: crear cultivo), notificamos al sistema globalmente
             if (data.action_performed === 'create') {
                 window.dispatchEvent(new CustomEvent('cultivoActualizado'));
             }
@@ -58,6 +76,7 @@ function ChatBot() {
         }
     };
 
+    // --- Estilos en línea para encapsulamiento rápido del widget ---
     const chatBubbleStyle = {
         position: 'fixed', bottom: '2rem', right: '2rem', width: '4rem', height: '4rem',
         borderRadius: '50%', backgroundColor: 'rgb(7, 136, 39)', color: 'white',

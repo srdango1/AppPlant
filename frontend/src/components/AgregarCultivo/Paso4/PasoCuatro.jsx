@@ -1,11 +1,24 @@
+//src/components/AgregarCultivo/Paso4/PasoCuatro.jsx
 import React from 'react';
 import SummaryItem from './Resumen';
 
+/**
+ * Cuarto y último paso del Wizard: Resumen y Confirmación.
+ * Muestra una vista consolidada de todos los datos recopilados en los pasos anteriores
+ * (Nombre, Plantas, Hardware) para que el usuario valide antes de guardar.
+ * * @param {Object} formData - Objeto con el estado global acumulado del wizard.
+ * @param {Function} onFinish - Función para enviar los datos finales al backend/padre.
+ * @param {Function} onBack - Función para regresar al paso anterior.
+ * @param {boolean} isLoading - Estado de carga para deshabilitar botones durante el envío.
+ */
 function StepFourSummary({ formData, onFinish, onBack, isLoading }) {
     
+    // Preparación de datos para visualización (Data Mapping)
+    // Se manejan valores por defecto (Fallbacks) por si algún campo es null/undefined.
     const datos = {
         nombre: formData.nombre || "Sin nombre",
         ubicacion: formData.ubicacion || "Sin ubicación",
+        // Formateo de array a string legible
         plantas: `${formData.plantas.length} plantas (${formData.plantas.join(', ') || 'Ninguna'})`,
         device: formData.deviceId || "Ninguno conectado",
         alertRef: formData.nombre || "Cultivo"

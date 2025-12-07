@@ -3,16 +3,20 @@
 import React from 'react';
 
 /**
- * Muestra una métrica con icono opcional. Usada en pronósticos y detalles.
- * @param {string} label - Etiqueta de la métrica (ej: "Humedad").
- * @param {string} value - Valor (ej: "60%").
- * @param {string} iconName - Nombre del icono de Material Symbols (opcional).
+ * Componente de presentación para mostrar una métrica individual.
+ * Es flexible y tiene dos variantes de visualización:
+ * 1. Con Icono: Para listas destacadas (ej: detalles del día).
+ * 2. Sin Icono: Para listas compactas o laterales.
+ * * @param {string} label - Nombre de la métrica (ej: "Humedad").
+ * @param {string|number} value - Valor a mostrar (ej: "60%").
+ * @param {string} [iconName] - (Opcional) Nombre del icono de Material Symbols.
  */
 function MetricDetailItem({ label, value, iconName }) {
+    // Renderizado Condicional: Variación con Icono Grande
     if (iconName) {
-        // Estilo usado en "Detalles del Pronóstico" (columna principal)
         return (
             <div className="flex items-center gap-4 py-3">
+                {/* Círculo contenedor del icono con colores primarios */}
                 <div className="text-primary flex items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20 shrink-0 size-10">
                     <span className="material-symbols-outlined">{iconName}</span>
                 </div>
@@ -20,7 +24,7 @@ function MetricDetailItem({ label, value, iconName }) {
             </div>
         );
     } else {
-        // Estilo usado en "Detalles del Clima Actual" (barra lateral)
+        // Renderizado Condicional: Variación Compacta
         return (
             <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-500 dark:text-gray-400">{label}</span>

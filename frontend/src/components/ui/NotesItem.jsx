@@ -1,5 +1,12 @@
+//src/components/ui/NotesItem.jsx
 import React from 'react';
 
+/**
+ * Componente de presentación para un ítem individual de nota.
+ * Se utiliza en listas de resumen (ej: en el Sidebar) para mostrar una vista previa.
+ * * @param {string} text - Contenido o título de la nota.
+ * @param {string} date - Fecha formateada de la nota (ej: "24/05/2024").
+ */
 const NoteItem = ({ text, date }) => {
     return (
         <div className="flex items-start gap-3 px-3 py-2">

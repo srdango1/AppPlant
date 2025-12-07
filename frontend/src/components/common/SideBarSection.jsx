@@ -1,9 +1,16 @@
+//src/components/common/SideBarSection.jsx
 import React from 'react';
 
-// Recibe el título y el contenido anidado (children)
+/**
+ * Contenedor de Sección para Barras Laterales.
+ * Agrupa elementos relacionados (alertas, acciones, notas) bajo un título común,
+ * manteniendo la consistencia de espaciado y tipografía.
+ * * * @param {string} title - El encabezado de la sección (ej: "Alertas").
+ * @param {ReactNode} children - Los elementos a renderizar dentro de la sección.
+ */
 const SidebarSection = ({ title, children }) => {
     return (
-        // Contenedor externo (flex flex-col gap-4)
+        // Contenedor de la sección con espaciado vertical
         <div className="flex flex-col gap-4">
             
             {/* Título de la sección */}
@@ -11,7 +18,7 @@ const SidebarSection = ({ title, children }) => {
             
             {/* Contenedor interno del contenido (flex flex-col gap-2) */}
             <div className="flex flex-col gap-2">
-                {children} {/* ⬅️ Aquí se renderizan los ítems */}
+                {children} {/*se renderizan los ítems */}
             </div>
         </div>
     );

@@ -1,8 +1,19 @@
+//src/components/ui/GraficosCard.jsx
 import React from "react";
 import LineChart from "../common/graficos";
 
+/**
+ * Tarjeta contenedora para visualización de datos históricos.
+ * Envuelve el componente genérico 'LineChart' añadiendo contexto (título, resumen, KPI actual).
+ * * @param {string} tittle - Título del gráfico (ej: "Humedad").
+ * @param {string|number} value - Valor actual destacado (ej: "40%").
+ * @param {string} time - Periodo de tiempo (ej: "Últimos 7 días").
+ * @param {string} summary - Resumen de tendencia (ej: "+10%").
+ * @param {string} colorClass - Clase CSS para el color del texto de resumen (verde/rojo).
+ * @param {Array} charData - Array de objetos con los datos para el gráfico.
+ */
 function ChartCard({ tittle, value, time, summary, colorClass,charData }) {
-    // se consiguen los datos para eje X
+    // Extracción de etiquetas para el eje X
     const labels = charData ? charData.map(dataPoint => dataPoint.day ) : []
     return(
         // Contenedor principal de la tarjeta de gráfico 
@@ -18,7 +29,7 @@ function ChartCard({ tittle, value, time, summary, colorClass,charData }) {
                 {value}
             </p>
             
-            {/* Contenedor del Resumen de Tiempo (Últimos 7 días) */}
+            {/* Contenedor del Resumen de Tiempo  */}
             <div className="flex gap-1">
                 {/* Texto: Últimos 7 días */}
                 <p className="text-base font-normal leading-normal text-[#64876b] dark:text-gray-400">

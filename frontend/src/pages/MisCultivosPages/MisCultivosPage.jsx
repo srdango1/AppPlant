@@ -3,8 +3,12 @@ import DetailedCultivationCard from '../../components/ui/MisCultivosCard';
 import Button from '../../components/common/Button';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-// --- Función de Lógica Visual (para las imágenes) ---
+/**
+ * Helper para asignar imágenes visuales basadas en el tipo de planta.
+ * Mapea nombres de cultivos (en inglés) a URLs de imágenes predefinidas.
+ * @param {Array} plantas - Lista de plantas en el cultivo.
+ * @returns {string} URL de la imagen a mostrar.
+ */
 const getVisualImageUrl = (plantas) => {
     if (!plantas || plantas.length === 0) {
         return 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3'; 
@@ -21,14 +25,24 @@ const getVisualImageUrl = (plantas) => {
     return plantImageMap[firstPlant] || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCUrro4BndRZevZ6SI0fqkNRopd60Dn6wfgbc4FSaS222BH1a75sE54KZABAlJuWnH_w9WUd0spUm3ZGnBj2oFdUDU8_za2__RfeTmj8gLqI1Sg_FmbGsAHqTnbulbgcikLwxpyZtv8c_Zx1120qJhzHSK9zJcIMkUXCyGHr7a13u_BjfhyqEbeEEvB6HOBRVhQURGyTgLzUckPUQlxHKujj_l1K6KMwAubQpfGufoahxzQiYaFZ3e-cKsUIBfnwBgaCpBq9MIuk0L3';
 };
 
-
+/**
+ * Página principal de "Mis Cultivos".
+ * Responsabilidades:
+ * 1. Obtener la lista de todos los cultivos del usuario desde la API.
+ * 2. Manejar estados de carga (Loading) y error.
+ * 3. Escuchar eventos de actualización ('cultivoActualizado') para refrescar la lista sin recargar.
+ * 4. Renderizar la grilla de tarjetas de cultivo.
+ */
 function MisCultivosPage() {
     const [cultivos, setCultivos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // 1. Convertimos la lógica de fetch en una función reutilizable
-    const fetchCultivos = async () => {
+    /**
+     * Función asíncrona reutilizable para obtener los datos.
+     * Se define fuera del useEffect para poder ser llamada por el listener de eventos.
+     */    
+        const fetchCultivos = async () => {
         setIsLoading(true);
         setError(null);
         try {
@@ -44,26 +58,28 @@ function MisCultivosPage() {
         }
     };
 
-    // 2. useEffect para cargar los datos al inicio
+    // Carga inicial de datos al montar el componente
     useEffect(() => {
         fetchCultivos();
     }, []);
 
-    // 3. Este useEffect escucha el evento global 'cultivoActualizado'
+/**
+     * Effect: Patrón de Observador (Event Listener).
+     * Permite que otros componentes (como el Chatbot o Modales de creación)
+     * notifiquen que hubo cambios, forzando una recarga de esta lista.
+     */    
     useEffect(() => {
         const handleCultivoActualizado = () => {
             console.log("Evento 'cultivoActualizado' recibido. Recargando cultivos...");
-            fetchCultivos(); // Vuelve a cargar los datos
+            fetchCultivos(); 
         };
-
-        // Añade el "listener"
         window.addEventListener('cultivoActualizado', handleCultivoActualizado);
 
-        // Limpia el "listener" cuando el componente se desmonta
+        // Cleanup: Importante para evitar fugas de memori
         return () => {
             window.removeEventListener('cultivoActualizado', handleCultivoActualizado);
         };
-    }, []); // El array vacío [] asegura que esto se ejecute solo una vez
+    }, []); 
 
     return (
         <>
@@ -78,9 +94,11 @@ function MisCultivosPage() {
                     </Button>
                 </div>
                 
+                {/* Feedback Visual: Estados de Carga y Error */}
                 {isLoading && <p>Cargando cultivos...</p>}
                 {error && <p style={{ color: 'red' }}>Error: {error}</p>}
                 
+                {/* Renderizado de la lista */}
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         

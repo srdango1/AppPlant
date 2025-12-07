@@ -1,11 +1,11 @@
-
+// src/components/ui/inicioPage/StatsCard.jsx
 import React from 'react';
 
 /**
- * Componente para mostrar una estadística clave.
+ * Componente tipo terjeta para mostrar métricas clave del sistema.
+ * Utiliza un diseño responsivo que se adapta a grids
  * @param {string} title - El nombre de la métrica (ej: "Humedad promedio").
- * @param {string} value - El valor de la métrica (ej: "65%").
- * Por ahora muestra datos clave fijos que se rellenan
+ * @param {string} value - El valor numerico o porcentual de la métrica (ej: "65%").
  */
 
 function StatsCard({ title, value }) {

@@ -26,12 +26,20 @@ const HOURLY_DETAILS_MOCK = [
     { label: "Viento", value: "15 km/h", icon: "air" },
 ];
 
+/**
+ * Página de Detalle Meteorológico.
+ * Dashboard centralizado que consume la API de OpenWeatherMap.
+ * Utiliza una arquitectura basada en Hooks para separar la lógica de obtención de datos
+ * de la presentación visual.
+ */
 function WeatherPage() {
     
-    // 1. Usar el Hook
+    // 1. Obtención de datos 
+    // El hook useWeather maneja la carga asíncrona y los errores de red.
     const { data: weatherData, loading: weatherLoading, error: weatherError } = useWeather('Osorno');
     
-    // 2. Procesar los datos con tu utilidad
+    // 2. Transformación de datos 
+    // formatWeatherData adapta el JSON complejo de la API a un objeto simple para la UI.
     const processedWeather = formatWeatherData(weatherData, weatherError);
 
     return (
