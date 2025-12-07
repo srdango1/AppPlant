@@ -6,8 +6,7 @@ import CultivosDetalle from './pages/MisCultivosPages/CultivosDetalle';
 import Header from './components/layout/Header';
 import AddCultivoPage from './pages/AddCultivoPage/AddCultivoPage';
 import NotasPage from './pages/NotasPage';
-
-// Importa el nuevo componente de ChatBot
+import GeneralStatsPage from './pages/EstadistiPage'
 import ChatBot from './components/ui/ChatBot';
 import Inicio from './pages/Inicio';
 import WeatherPage from './pages/WeatherPage';
@@ -24,6 +23,7 @@ function App (){
             <Route path='/cultivos/:id' element={<CultivosDetalle/>}/>
             <Route path='/notas' element={<NotasPage/>}/>
             <Route path='/clima' element={<WeatherPage/>}/>
+            <Route path='/estdisticas' element={<GeneralStatsPage/>}/>
           </Routes>
           
         {/* Añade el ChatBot aquí */}
