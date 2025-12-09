@@ -1,5 +1,5 @@
 //src/componentes/layout/Header.jsx
-import React from 'react';
+import React,{useState} from 'react';
 import { Link } from 'react-router-dom';
 
 //Import Componentes
@@ -24,6 +24,9 @@ const NavLink = ({ href, children }) => (
  * Se mantiene fijo (sticky) en la parte superior.
  */
 function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenu = () => setIsMenuOpen(false);
+  const linkClasses = "text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors py-2 md:py-0";
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-b-gray-200 dark:border-b-gray-700 bg-background-light dark:bg-background-dark px-10 py-3 shadow-sm">
       
@@ -33,28 +36,59 @@ function Header() {
         <h2 className="text-xl font-bold tracking-[-0.015em] text-gray-800 dark:text-white">PlantCare</h2>
       </div>
       
-      {/* 2. Barra de Navegación Principal (Visible en Desktop) */}
-      <nav className="hidden md:flex items-center justify-center flex-1 gap-6">
-        <Link to="/" element={<Inicio/>} >Inicio</Link>
-        <Link to="/cultivos" element={<MisCultivosPage/>}>Mis Cultivos</Link>
-        <Link to="/estdisticas" >Estadísticas</Link>
-        <Link to="/clima" element ={<WeatherPage/>} >Clima</Link>
-        <Link to="/notas" className="...">Notas</Link>
+      <button 
+          className="md:hidden p-2 text-gray-600 dark:text-gray-300 focus:outline-none"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+        >
+          <span className="material-symbols-outlined text-3xl">
+            {isMenuOpen ? 'close' : 'menu'}
+          </span>
+        </button>
 
-      </nav>
+      {/* 2. Barra de Navegación Principal (Visible en Desktop) */}
+      <nav className="hidden md:flex items-center gap-6">
+          <Link to="/" className={linkClasses}>Inicio</Link>
+          <Link to="/cultivos" className={linkClasses}>Mis Cultivos</Link>
+          <Link to="/estadisticas" className={linkClasses}>Estadísticas</Link>
+          <Link to="/clima" className={linkClasses}>Clima</Link>
+          <Link to="/notas" className={linkClasses}>Notas</Link>
+        </nav>
       
       {/* 3. Botones de Acción de Usuario */}
-      <div className="flex items-center gap-4">
-        <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
-          <span className="material-symbols-outlined">notifications</span>
-        </button>
-        <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
-          <span className="material-symbols-outlined">person</span>
-        </button>
-        <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
-          <span className="material-symbols-outlined">settings</span>
-        </button>
-      </div>
+      <div className="hidden md:flex items-center gap-4">
+          <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
+            <span className="material-symbols-outlined">notifications</span>
+          </button>
+          <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
+            <span className="material-symbols-outlined">person</span>
+          </button>
+          <button className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300">
+            <span className="material-symbols-outlined">settings</span>
+          </button>
+        </div>
+
+    {isMenuOpen && (
+        <nav className="md:hidden flex flex-col px-6 pb-4 border-t border-gray-100 dark:border-gray-700 bg-background-light dark:bg-background-dark animate-fade-in-down">
+          <Link to="/" className={linkClasses} onClick={closeMenu}>Inicio</Link>
+          <Link to="/cultivos" className={linkClasses} onClick={closeMenu}>Mis Cultivos</Link>
+          <Link to="/estadisticas" className={linkClasses} onClick={closeMenu}>Estadísticas</Link>
+          <Link to="/clima" className={linkClasses} onClick={closeMenu}>Clima</Link>
+          <Link to="/notas" className={linkClasses} onClick={closeMenu}>Notas</Link>
+          
+          {/* Opciones extra para móvil (Perfil, Ajustes) */}
+          <div className="border-t border-gray-200 dark:border-gray-700 my-2 pt-2 flex gap-4">
+             <button className="flex items-center gap-2 text-gray-600 dark:text-gray-300 py-2">
+                <span className="material-symbols-outlined">person</span> Perfil
+             </button>
+             <button className="flex items-center gap-2 text-gray-600 dark:text-gray-300 py-2">
+                <span className="material-symbols-outlined">settings</span> Ajustes
+             </button>
+          </div>
+        </nav>
+      )}
+      
+
+      
     </header>
   );
 }
