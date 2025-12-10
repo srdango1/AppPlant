@@ -38,10 +38,13 @@ function DetailedCultivationCard({
     <div className="card-hover flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
       
       {/* Imagen de cabecera */}
-      <div 
-        className="w-full bg-center bg-no-repeat aspect-video bg-cover" 
-        style={{ backgroundImage: `url("${imageUrl}")` }} 
-      />
+      <div className="w-full h-40 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center rounded-t-xl overflow-hidden border-b border-gray-100 dark:border-gray-700">
+    <img 
+        src={imageUrl} 
+        alt="Icono de cultivo"
+        className="w-full h-full object-contain p-6 opacity-90 transition-transform duration-300 group-hover:scale-110" 
+    />
+</div>
       
       <div className="p-6 flex flex-col grow">
         

@@ -16,12 +16,13 @@ function CultivationCard({ name, status, statusColor, imageUrl }) {
     <div className="flex flex-col gap-3 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg transition-shadow duration-300 cursor-pointer">
       
       {/* Imagen del Cultivo */}
-      <div 
-        className="w-full bg-center bg-no-repeat aspect-video bg-cover" 
-        data-alt={`Imagen de ${name}`} 
-        style={{ backgroundImage: `url("${imageUrl}")` }}
-      ></div>
-      
+      <div className="w-full h-40 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center rounded-t-xl overflow-hidden border-b border-gray-100 dark:border-gray-700">
+    <img 
+        src={imageUrl} 
+        alt="Icono de cultivo"
+        className="w-full h-full object-contain p-6 opacity-90 transition-transform duration-300 group-hover:scale-110" 
+    />
+</div>
       {/* Detalles del estado */}
       <div className="p-4">
         <p className="text-base font-medium">{name}</p>
