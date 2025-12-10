@@ -144,7 +144,7 @@ function Inicio() {
                                         name={cultivo.name} 
                                         status={cultivo.status} 
                                         statusColor={cultivo.statusColor} 
-                                        imageUrl={ getCultivationImage(cultivo.plantas, cultivo.location|| cultivo.location)}
+                                        imageUrl={ getCultivationImage(cultivo.plantas, cultivo.location || cultivo.ubicacion)}
                                     />
                                 </Link>
                             ))

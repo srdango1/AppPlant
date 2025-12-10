@@ -6,13 +6,13 @@
  * @param {string} location - Ubicación ('Interior', 'Exterior', 'Balcón', etc.).
  * @returns {string} Ruta absoluta de la imagen en la carpeta public.
  */
+const IMG_INTERIOR = '/img/Crops/indoor.png';
+const IMG_EXTERIOR = '/img/Crops/exterior.png';
+const IMG_DEFAULT = '/img/Crops/default.jpg'
+
 export const getCultivationImage = (plants, location) => {
     
-    // Rutas a las imágenes en la carpeta public/images/
-    const IMG_INTERIOR = '/img/Crops/indoor.png';
-    const IMG_EXTERIOR = '/img/Crops/exterior.png';
-    const IMG_DEFAULT = '/img/Crops/default.jpg'
-
+    
     // 1. Validación de seguridad: si no hay ubicación, asumimos exterior por defecto.
     if (!location) {
         return IMG_DEFAULT;
