@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import DetailedCultivationCard from '../../components/ui/MisCultivosCard';
 import Button from '../../components/common/Button';
 
-import { getCultivationImage } from '../../utils/utilsImg';
+import { getCultivationImage } from '../utils/utilsImg';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
 
 /**
  * Página principal de "Mis Cultivos".
@@ -82,8 +81,9 @@ function MisCultivosPage() {
                 {/* Renderizado de la lista */}
                 {!isLoading && !error && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        
                         {cultivos.map(cultivo => {
-                            const visualImageUrl = getCultivationImage(cultivo.plantas, cultivo.location);
+                            const visualImageUrl = getVisualImageUrl(cultivo.plantas, cultivo.location);
 
                             return (
                                 <DetailedCultivationCard 

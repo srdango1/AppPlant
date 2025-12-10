@@ -9,7 +9,7 @@ import Sidebar from "../components/layout/InicioSideBar";
 
 import useWeather from '../hooks/useWeather';
 import { formatWeatherData } from "../utils/utilsWeather";
-import { getCultivationImage } from '../../utils/utilsImg';
+import { getCultivationImage } from '../utils/utilsImg';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -144,7 +144,7 @@ function Inicio() {
                                         name={cultivo.name} 
                                         status={cultivo.status} 
                                         statusColor={cultivo.statusColor} 
-                                        imageUrl={ getCultivationImage(cultivo.plantas, cultivo.ubicacion|| cultivo.location)}
+                                        imageUrl={ getCultivationImage(cultivo.plantas, cultivo.location|| cultivo.location)}
                                     />
                                 </Link>
                             ))
